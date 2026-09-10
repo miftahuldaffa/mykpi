@@ -80,17 +80,17 @@ function loadGSData() {
 }
 
 /* ===== PARSE GS CSV =====
-   A = KODE SLS
-   B = Nama SLS
-   C = TYPE SLS
-   D = AREA
-   E = Store Code
-   F = Store Name
-   G = Hari
-   H = Pola
-   I = SKU Target
-   J = ACT
-   K+ = Produk SKU (1=ada, 0=tidak)
+   STRUKTUR BARU (tanpa kolom AREA):
+   A = KODE SLS      (0)
+   B = Nama SLS      (1)
+   C = TYPE SLS      (2)
+   D = Store Code    (3)
+   E = Store Name    (4)
+   F = Hari          (5)
+   G = Pola          (6)
+   H = SKU Target    (7)
+   I = ACT           (8)
+   J+ = Produk SKU   (9+)
 */
 function parseGSData(txt) {
     var NL = String.fromCharCode(10);
@@ -105,14 +105,14 @@ function parseGSData(txt) {
     var COL_KODE_SLS   = 0;
     var COL_NAMA_SLS   = 1;
     var COL_TYPE_SLS   = 2;
-    var COL_AREA       = 3;
-    var COL_STORE_CODE = 4;
-    var COL_STORE_NAME = 5;
-    var COL_HARI       = 6;
-    var COL_POLA       = 7;
-    var COL_SKU_TGT    = 8;
-    var COL_ACT        = 9;
-    var COL_PROD_START = 10;
+    // AREA column removed — indices shifted
+    var COL_STORE_CODE = 3;
+    var COL_STORE_NAME = 4;
+    var COL_HARI       = 5;
+    var COL_POLA       = 6;
+    var COL_SKU_TGT    = 7;
+    var COL_ACT        = 8;
+    var COL_PROD_START = 9;
 
     for (var c = COL_PROD_START; c < headers.length; c++) {
         var pName = headers[c].trim().replace(/\"/g, '');
@@ -137,7 +137,7 @@ function parseGSData(txt) {
             kodeSls  : (cols[COL_KODE_SLS]   || '').trim().replace(/\"/g, ''),
             namaSls  : (cols[COL_NAMA_SLS]   || '').trim().replace(/\"/g, ''),
             typeSls  : (cols[COL_TYPE_SLS]   || '').trim().replace(/\"/g, ''),
-            area     : (cols[COL_AREA]       || '').trim().replace(/\"/g, ''),
+            area     : '',  // AREA column no longer exists
             storeCode: (cols[COL_STORE_CODE] || '').trim().replace(/\"/g, ''),
             storeName: storeName,
             hari     : (cols[COL_HARI]       || '').trim().replace(/\"/g, ''),
@@ -358,7 +358,6 @@ function renderSalesSummary(data) {
                 kodeSls : d.kodeSls,
                 namaSls : d.namaSls,
                 typeSls : d.typeSls,
-                area    : d.area,
                 stores  : [],
                 gsYes   : 0,
                 totalAct: 0,
@@ -396,7 +395,7 @@ function renderSalesSummary(data) {
         h += '<div class="sls-card-head">';
         h += '<div>';
         h += '<div class="nm">' + sg.namaSls + '</div>';
-        h += '<div class="sub">' + sg.kodeSls + ' | ' + sg.area + ' | ' + (sg.typeSls || '-') + ' | ' + totalStores + ' Toko</div>';
+        h += '<div class="sub">' + sg.kodeSls + ' | ' + (sg.typeSls || '-') + ' | ' + totalStores + ' Toko</div>';
         h += '</div>';
         h += '<span class="pb-b ' + pctCls + '">' + gsP + '%</span>';
         h += '</div>';
@@ -481,7 +480,7 @@ function renderStoreGrid(data) {
         h += '<span class="' + flagCls + '">' + flagTxt + '</span>';
         h += '<div>';
         h += '<div class="s-name">' + d.storeName + '</div>';
-        h += '<div class="s-code">' + d.storeCode + ' | ' + d.area + ' | Hari:' + (d.hari || '-') + ' | Pola:' + (d.pola || '-') + '</div>';
+        h += '<div class="s-code">' + d.storeCode + ' | Hari:' + (d.hari || '-') + ' | Pola:' + (d.pola || '-') + '</div>';
         h += '<div class="s-code">' + d.namaSls + ' (' + (d.typeSls || '-') + ')</div>';
         h += '</div>';
         h += '</div>';
@@ -545,3 +544,4 @@ function toggleStore(el) {
         detail.classList.add('open');
     }
 }
+
