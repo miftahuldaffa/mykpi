@@ -78,17 +78,9 @@ function loadGSData() {
 }
 
 /* ===== PARSE GS CSV =====
-   STRUKTUR BARU (tanpa kolom AREA):
-   A = KODE SLS      (0)
-   B = Nama SLS      (1)
-   C = TYPE SLS      (2)
-   D = Store Code    (3)
-   E = Store Name    (4)
-   F = Hari          (5)
-   G = Pola          (6)
-   H = SKU Target    (7)
-   I = ACT           (8)
-   J+ = Produk SKU   (9+)
+   AUTO-DETECT header row → produk otomatis ikut Google Sheet tiap bulan.
+   Struktur kolom (tanpa AREA):
+   KODE SLS | Nama SLS | TYPE SLS | Store Code | Store Name | Hari | Pola | SKU Target | ACT | [produk1] | [produk2] | ...
 */
 function parseGSData(txt) {
     var NL = String.fromCharCode(10);
@@ -98,25 +90,77 @@ function parseGSData(txt) {
 
     if (lines.length < 2) return { data: [], products: [] };
 
-    var headers = splitCSVLine(lines[7]);
+    /* --- Cari header row: baris yang ada "KODE SLS" atau "Store Code" --- */
+    var headerIdx = -1;
+    for (var i = 0; i < lines.length; i++) {
+        var upper = lines[i].toUpperCase();
+        if (upper.indexOf('KODE SLS') !== -1 && upper.indexOf('STORE') !== -1) {
+            headerIdx = i;
+            break;
+        }
+    }
+    /* Fallback: cari baris dengan "SKU TARGET" */
+    if (headerIdx === -1) {
+        for (var i = 0; i < lines.length; i++) {
+            var upper = lines[i].toUpperCase();
+            if (upper.indexOf('SKU') !== -1 && upper.indexOf('TARGET') !== -1) {
+                headerIdx = i;
+                break;
+            }
+        }
+    }
+    /* Fallback terakhir: pakai lines[47] seperti sebelumnya */
+    if (headerIdx === -1) {
+        headerIdx = Math.min(47, lines.length - 1);
+    }
 
-    var COL_KODE_SLS   = 0;
-    var COL_NAMA_SLS   = 1;
-    var COL_TYPE_SLS   = 2;
-    var COL_STORE_CODE = 3;
-    var COL_STORE_NAME = 4;
-    var COL_HARI       = 5;
-    var COL_POLA       = 6;
-    var COL_SKU_TGT    = 7;
-    var COL_ACT        = 8;
-    var COL_PROD_START = 9;
+    var headers = splitCSVLine(lines[headerIdx]);
+
+    /* --- Cari kolom-kolom utama berdasarkan nama header --- */
+    var COL_KODE_SLS   = -1;
+    var COL_NAMA_SLS   = -1;
+    var COL_TYPE_SLS   = -1;
+    var COL_STORE_CODE = -1;
+    var COL_STORE_NAME = -1;
+    var COL_HARI       = -1;
+    var COL_POLA       = -1;
+    var COL_SKU_TGT    = -1;
+    var COL_ACT        = -1;
+
+    for (var c = 0; c < headers.length; c++) {
+        var hu = headers[c].toUpperCase().trim();
+        if (hu === 'KODE SLS' || hu === 'KODE_SLS')              COL_KODE_SLS = c;
+        else if (hu === 'NAMA SLS' || hu === 'NAMA_SLS')         COL_NAMA_SLS = c;
+        else if (hu === 'TYPE SLS' || hu === 'TYPE_SLS' || hu === 'TYPE' || hu === 'TIPE') COL_TYPE_SLS = c;
+        else if (hu === 'STORE CODE' || hu === 'STORE_CODE' || hu === 'KODE TOKO') COL_STORE_CODE = c;
+        else if (hu === 'STORE NAME' || hu === 'STORE_NAME' || hu === 'NAMA TOKO') COL_STORE_NAME = c;
+        else if (hu === 'HARI' || hu === 'DAY')                  COL_HARI = c;
+        else if (hu === 'POLA' || hu === 'PATTERN')              COL_POLA = c;
+        else if (hu === 'SKU TARGET' || hu === 'SKU_TARGET' || hu === 'TARGET SKU') COL_SKU_TGT = c;
+        else if (hu === 'ACT' || hu === 'ACTUAL')                COL_ACT = c;
+    }
+
+    /* Fallback: jika kolom tidak ditemukan, pakai posisi default */
+    if (COL_KODE_SLS   === -1) COL_KODE_SLS   = 0;
+    if (COL_NAMA_SLS   === -1) COL_NAMA_SLS   = 1;
+    if (COL_TYPE_SLS   === -1) COL_TYPE_SLS   = 2;
+    if (COL_STORE_CODE === -1) COL_STORE_CODE = 3;
+    if (COL_STORE_NAME === -1) COL_STORE_NAME = 4;
+    if (COL_HARI       === -1) COL_HARI       = 5;
+    if (COL_POLA       === -1) COL_POLA       = 6;
+    if (COL_SKU_TGT    === -1) COL_SKU_TGT    = 7;
+    if (COL_ACT        === -1) COL_ACT        = 8;
+
+    /* Produk = semua kolom setelah ACT */
+    var COL_PROD_START = COL_ACT + 1;
 
     for (var c = COL_PROD_START; c < headers.length; c++) {
         var pName = headers[c].trim().replace(/\"/g, '');
         if (pName) products.push(pName);
     }
 
-    for (var r = 1; r < lines.length; r++) {
+    /* --- Parse data: mulai dari baris SETELAH header --- */
+    for (var r = headerIdx + 1; r < lines.length; r++) {
         var line = lines[r].trim();
         if (!line) continue;
         var cols = splitCSVLine(line);
@@ -233,7 +277,6 @@ function getFilteredGS() {
         /* GS Flag filter: 1=tercapai, 0=belum, hampir=gap -5 s/d -1 */
         if (vGS !== 'all') {
             if (vGS === 'hampir') {
-                /* Hampir Capai: belum tercapai tapi gap hanya -1 s/d -5 */
                 if (d.gsFlag === 1 || d.gap < -5 || d.gap >= 0) continue;
             } else if (vGS === '1') {
                 if (d.gsFlag !== 1) continue;
@@ -297,35 +340,29 @@ function renderSummary(data) {
     var targetGS = Math.ceil(totalToko * 50 / 100);
     var gapGS    = gsYes - targetGS;
     var gsP      = totalToko > 0 ? Math.round((gsYes / totalToko) * 100) : 0;
-    var tgtP     = totalToko > 0 ? Math.round((targetGS / totalToko) * 100) : 0;
 
     var h = '<div class="gs-sum-grid gs-sum-4">';
 
-    /* 1. TOTAL TOKO */
     h += '<div class="gs-sum-card highlight">';
     h += '<div class="lbl">TOTAL TOKO</div>';
     h += '<div class="val">' + totalToko + '</div>';
     h += '</div>';
 
-    /* 2. TARGET GS (50%) */
     h += '<div class="gs-sum-card">';
     h += '<div class="lbl">TARGET GS (50%)</div>';
     h += '<div class="val">' + targetGS + ' <small>Toko</small></div>';
-    h += '<div class="sub"><span class="pb-b ph-m">' + tgtP + '%</span></div>';
     h += '</div>';
 
-    /* 3. GS TERCAPAI */
     h += '<div class="gs-sum-card">';
     h += '<div class="lbl">GS TERCAPAI</div>';
     h += '<div class="val">' + gsYes + ' <small>Toko</small></div>';
     h += '<div class="sub"><span class="pb-b ' + (gsP >= 50 ? 'ph-h' : gsP >= 30 ? 'ph-m' : 'ph-l') + '">' + gsP + '%</span></div>';
     h += '</div>';
 
-    /* 4. GAP GS KE TARGET */
     h += '<div class="gs-sum-card">';
     h += '<div class="lbl">GAP GS KE TARGET</div>';
     h += '<div class="val" style="color:' + (gapGS >= 0 ? '#22c55e' : '#ef4444') + '">' + (gapGS >= 0 ? '+' : '') + gapGS + ' <small>Toko</small></div>';
-    h += '<div class="sub">' + (gapGS >= 0 ? '<span class="pb-b ph-h">✅ Target Tercapai</span>' : '<span class="pb-b ph-l">Kurang ' + Math.abs(gapGS) + ' Toko</span>') + '</div>';
+    h += '<div class="sub">' + (gapGS >= 0 ? '<span class="pb-b ph-h">Target Tercapai</span>' : '<span class="pb-b ph-l">Kurang ' + Math.abs(gapGS) + ' Toko</span>') + '</div>';
     h += '</div>';
 
     h += '</div>';
@@ -459,7 +496,7 @@ function renderStoreGrid(data) {
         var flagCls = d.gsFlag === 1 ? 'gs-flag-yes' : 'gs-flag-no';
         var flagTxt = d.gsFlag === 1 ? '✅ GS' : '❌ NO';
 
-        /* Hampir capai: beri badge kuning */
+        /* Hampir capai: badge kuning jika gap -1 s/d -5 */
         if (d.gsFlag === 0 && d.gap >= -5 && d.gap < 0) {
             flagCls = 'gs-flag-hampir';
             flagTxt = '🟡 -' + Math.abs(d.gap);
@@ -539,3 +576,4 @@ function toggleStore(el) {
         detail.classList.add('open');
     }
 }
+
