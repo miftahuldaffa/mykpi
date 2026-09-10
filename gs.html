@@ -1,0 +1,147 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GS Tracking 2026 - Mondelez</title>
+    <link rel="icon" href="img/favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/shared.css">
+</head>
+<body>
+
+    <nav class="nav">
+        <div class="nav-brand">
+            <div class="nav-logo"><img src="img/favicon.png" alt="M"></div>
+            <div>
+                <div class="nav-title">Mondelez International</div>
+                <div class="nav-sub">GS Tracking 2026</div>
+            </div>
+        </div>
+
+        <div class="nav-right">
+            <a href="index.html" class="nav-link">💰 Incentive</a>
+            <a href="fundamental.html" class="nav-link">📊 Fundamental</a>
+            <a href="leaderboard.html" class="nav-link">🏆 Leaderboard</a>
+            <a href="gs.html" class="nav-link active">📍 GS Tracking</a>
+            <div class="badge st-load" id="stBadge">
+                <span id="stTxt">Loading...</span>
+            </div>
+            <button class="theme-btn" id="themeBtn">🌙 Mode</button>
+        </div>
+    </nav>
+
+    <div class="wrap">
+
+        <!-- FILTER BAR -->
+        <div class="ctrl-bar">
+            <h3>📍 GS Tracking</h3>
+
+            <div class="ctrl-grp">
+                <label>Bulan</label>
+                <select id="selMonth">
+                    <option value="M01">Januari</option>
+                    <option value="M02">Februari</option>
+                    <option value="M03">Maret</option>
+                    <option value="M04">April</option>
+                    <option value="M05">Mei</option>
+                    <option value="M06">Juni</option>
+                    <option value="M07">Juli</option>
+                    <option value="M08">Agustus</option>
+                    <option value="M09">September</option>
+                    <option value="M10">Oktober</option>
+                    <option value="M11">November</option>
+                    <option value="M12">Desember</option>
+                </select>
+            </div>
+
+            <div class="ctrl-grp">
+                <label>Area</label>
+                <select id="filterArea">
+                    <option value="all">Semua Area</option>
+                </select>
+            </div>
+
+            <div class="ctrl-grp">
+                <label>Type</label>
+                <select id="filterType">
+                    <option value="all">Semua Type</option>
+                </select>
+            </div>
+
+            <div class="ctrl-grp">
+                <label>Salesman</label>
+                <select id="filterSales">
+                    <option value="all">Semua Salesman</option>
+                </select>
+            </div>
+
+            <div class="ctrl-grp">
+                <label>Hari Kerja</label>
+                <select id="filterHK">
+                    <option value="all">Semua Hari</option>
+                </select>
+            </div>
+
+            <div class="ctrl-grp">
+                <label>Pola</label>
+                <select id="filterPola">
+                    <option value="all">Semua Pola</option>
+                </select>
+            </div>
+
+            <div class="ctrl-grp">
+                <label>GS Flag</label>
+                <select id="filterGS">
+                    <option value="all">Semua</option>
+                    <option value="1">✅ Tercapai</option>
+                    <option value="0">❌ Belum</option>
+                </select>
+            </div>
+
+            <div class="ctrl-grp ctrl-search">
+                <label>Cari Toko</label>
+                <input type="text" id="searchToko" placeholder="Ketik nama toko..." autocomplete="off">
+            </div>
+        </div>
+
+        <!-- SUMMARY -->
+        <div class="section">
+            <div class="sec-header">
+                <h2>📊 Summary</h2>
+            </div>
+            <div class="sec-body" id="sumCards"></div>
+        </div>
+
+        <!-- RINGKASAN PER SALESMAN -->
+        <div class="section">
+            <div class="sec-header">
+                <h2>👤 Ringkasan Per Salesman</h2>
+                <small style="color:var(--t2)">Target: SO/WHS 60% | Retail 50%</small>
+            </div>
+            <div class="sec-body" id="salesSummary"></div>
+        </div>
+
+        <!-- DETAIL PER TOKO (muncul hanya setelah filter salesman / search) -->
+        <div class="section" id="storeSection">
+            <div class="sec-header">
+                <h2>🏪 Detail Per Toko</h2>
+                <span id="tokoCount" class="sec-count"></span>
+            </div>
+            <div class="sec-body" id="storeGrid"></div>
+        </div>
+
+        <div class="ft">
+            <span>Mondelez International</span> © 2026 | GS Tracking Monitoring
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script src="js/anti-devtools.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/shared.js"></script>
+    <script src="js/gs.js"></script>
+
+</body>
+</html>

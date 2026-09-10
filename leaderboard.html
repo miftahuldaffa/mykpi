@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leaderboard - Mondelez International</title>
+<link rel="icon" href="img/favicon.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/shared.css">
+</head>
+<body>
+
+<!-- ===== NAVBAR ===== -->
+<div class="nav">
+    <div class="nav-brand">
+        <div class="nav-logo">M</div>
+        <div>
+            <div class="nav-title">Leaderboard</div>
+            <div class="nav-sub">Mondelez International - 2026</div>
+        </div>
+    </div>
+    <div class="nav-right">
+        <a href="index.html" class="nav-link">&#128176; Incentive</a>
+        <a href="fundamental.html" class="nav-link">&#128202; Fundamental</a>
+        <a href="leaderboard.html" class="nav-link active">&#127942; Leaderboard</a>
+        <a href="gs.html" class="nav-link active">📍 GS Tracking</a>
+        <button class="theme-btn" id="themeBtn">
+            <span id="themeIc">&#127769;</span>
+            <span id="themeLb">Dark</span>
+        </button>
+        <span class="badge st-load" id="stBadge">
+            <span class="dot"></span>
+            <span id="stTxt">Loading...</span>
+        </span>
+    </div>
+</div>
+
+<!-- ===== MAIN CONTENT ===== -->
+<div class="wrap">
+
+    <!-- Control Bar: Filter -->
+    <div class="ctrl-bar">
+        <h3>&#128269; Filter</h3>
+        <div class="ctrl-grp">
+            <label>Ranking by:</label>
+            <select id="selSort">
+                <option value="ims">&#128293; IMS Revenue</option>
+                <option value="incentive">&#128176; Incentive (Total)</option>
+                <option value="coverage">&#128200; Coverage %</option>
+                <option value="gc">&#127811; GC %</option>
+                <option value="pf">&#127919; Product Focus (Avg)</option>
+                <option value="fund">&#128202; Fundamental (Avg)</option>
+            </select>
+        </div>
+        <div class="ctrl-grp">
+            <label>Area:</label>
+            <select id="filterArea">
+                <option value="all">Semua Area</option>
+            </select>
+        </div>
+        <div class="ctrl-grp">
+            <label>Tipe:</label>
+            <select id="filterType">
+                <option value="all">Semua Tipe</option>
+                <option value="whs">WHS</option>
+                <option value="mt">MT</option> 
+                <option value="retail">Retail</option>
+                <option value="torist">TO-RIST</option>
+            </select>
+        </div>
+        <div class="ctrl-grp">
+            <label>Dari:</label>
+            <select id="fromMonth">
+                <option value="M01" selected>Januari</option>
+                <option value="M02">Februari</option>
+                <option value="M03">Maret</option>
+                <option value="M04">April</option>
+                <option value="M05">Mei</option>
+                <option value="M06">Juni</option>
+                <option value="M07">Juli</option>
+                <option value="M08">Agustus</option>
+                <option value="M09">September</option>
+                <option value="M10">Oktober</option>
+                <option value="M11">November</option>
+                <option value="M12">Desember</option>
+            </select>
+        </div>
+        <div class="ctrl-grp">
+            <label>Sampai:</label>
+            <select id="toMonth">
+                <option value="M01">Januari</option>
+                <option value="M02">Februari</option>
+                <option value="M03">Maret</option>
+                <option value="M04">April</option>
+                <option value="M05">Mei</option>
+                <option value="M06" selected>Juni</option>
+                <option value="M07">Juli</option>
+                <option value="M08">Agustus</option>
+                <option value="M09">September</option>
+                <option value="M10">Oktober</option>
+                <option value="M11">November</option>
+                <option value="M12">Desember</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- ===== RANKING SECTION ===== -->
+    <div class="section">
+        <div class="sec-header">
+            <h2>&#127942; Ranking Salesman</h2>
+            <div class="sub" id="allLabel">Jan - Jun 2026</div>
+        </div>
+        <div class="sec-body">
+            <div id="allRank"></div>
+        </div>
+    </div>
+
+    <!-- ===== TREND CHART SECTION ===== -->
+    <div class="section">
+        <div class="sec-header">
+            <h2>&#128200; Trend Bulanan</h2>
+            <div class="sub" id="chartLabel">IMS Revenue</div>
+        </div>
+        <div class="sec-body">
+            <div class="chart-wrap" id="chartWrap"></div>
+            <div class="legend" id="chartLegend"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="ft"><span>Mondelez International</span> &copy; 2026 | KPI Leaderboard</div>
+</div>
+
+<!-- ===== SCRIPTS ===== -->
+<script src="js/auth.js"></script>
+<script src="js/anti-devtools.js"></script>
+<script src="js/config.js"></script>
+<script src="js/shared.js"></script>
+<script src="js/leaderboard.js"></script>
+
+</body>
+</html>
