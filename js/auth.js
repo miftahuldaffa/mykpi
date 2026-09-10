@@ -16,7 +16,7 @@ const AUTH = {
   // ============== KONFIGURASI ==============
 
   // URL Google Sheets password
-  SHEET_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSm4yRk_EJFy60oCN41JCs6nShf4XcI0vxhUmJy56xTrb-YR0sONOggFVBZafsSnHO1UuwcPosjSrwu/pub?output=csv",
+  SHEET_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vREzM4ApGsfjHM8jlkI1Xdtma7GyQ51HWVSz72M7-5i39Han7OaLq-2smxS26xvwTk3kbNZb4Q-OU1H/pub?output=csv",
 
   // Key untuk sessionStorage
   STORAGE_KEY: "kpi_auth_token",
