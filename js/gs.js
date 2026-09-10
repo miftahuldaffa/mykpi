@@ -98,7 +98,7 @@ function parseGSData(txt) {
 
     if (lines.length < 2) return { data: [], products: [] };
 
-    var headers = splitCSVLine(lines[0]);
+    var headers = splitCSVLine(lines[7]);
 
     var COL_KODE_SLS   = 0;
     var COL_NAMA_SLS   = 1;
@@ -229,7 +229,18 @@ function getFilteredGS() {
         if (vSales !== 'all' && d.namaSls !== vSales) continue;
         if (vHK    !== 'all' && d.hari    !== vHK)    continue;
         if (vPola  !== 'all' && d.pola    !== vPola)  continue;
-        if (vGS    !== 'all' && String(d.gsFlag) !== vGS) continue;
+
+        /* GS Flag filter: 1=tercapai, 0=belum, hampir=gap -5 s/d -1 */
+        if (vGS !== 'all') {
+            if (vGS === 'hampir') {
+                /* Hampir Capai: belum tercapai tapi gap hanya -1 s/d -5 */
+                if (d.gsFlag === 1 || d.gap < -5 || d.gap >= 0) continue;
+            } else if (vGS === '1') {
+                if (d.gsFlag !== 1) continue;
+            } else if (vGS === '0') {
+                if (d.gsFlag !== 0) continue;
+            }
+        }
 
         /* Search by Store Code OR Store Name */
         if (vSearch) {
@@ -269,60 +280,52 @@ function renderGS() {
     if (cnt) cnt.textContent = fd.length + ' Toko';
 }
 
-/* ===== RENDER SUMMARY CARDS ===== */
+/* ===== RENDER SUMMARY CARDS =====
+   4 Cards: Total Toko | Target GS (50%) | GS Tercapai | Gap GS ke Target
+*/
 function renderSummary(data) {
     var el = document.getElementById('sumCards');
     if (!el) return;
 
-    var totalToko   = data.length;
-    var gsYes       = 0;
-    var totalSKUTgt = 0;
-    var totalACT    = 0;
+    var totalToko = data.length;
+    var gsYes     = 0;
 
     for (var i = 0; i < data.length; i++) {
         if (data[i].gsFlag === 1) gsYes++;
-        totalSKUTgt += data[i].skuTarget;
-        totalACT    += data[i].act;
     }
 
-    var gsP    = totalToko > 0   ? Math.round((gsYes / totalToko) * 100) : 0;
-    var skuP   = totalSKUTgt > 0 ? Math.round((totalACT / totalSKUTgt) * 100) : 0;
-    var avgSKU = totalToko > 0   ? (totalACT / totalToko).toFixed(1) : '0';
-    var gapSKU = totalACT - totalSKUTgt;
+    var targetGS = Math.ceil(totalToko * 50 / 100);
+    var gapGS    = gsYes - targetGS;
+    var gsP      = totalToko > 0 ? Math.round((gsYes / totalToko) * 100) : 0;
+    var tgtP     = totalToko > 0 ? Math.round((targetGS / totalToko) * 100) : 0;
 
-    var h = '<div class="gs-sum-grid">';
+    var h = '<div class="gs-sum-grid gs-sum-4">';
 
+    /* 1. TOTAL TOKO */
     h += '<div class="gs-sum-card highlight">';
     h += '<div class="lbl">TOTAL TOKO</div>';
     h += '<div class="val">' + totalToko + '</div>';
     h += '</div>';
 
+    /* 2. TARGET GS (50%) */
+    h += '<div class="gs-sum-card">';
+    h += '<div class="lbl">TARGET GS (50%)</div>';
+    h += '<div class="val">' + targetGS + ' <small>Toko</small></div>';
+    h += '<div class="sub"><span class="pb-b ph-m">' + tgtP + '%</span></div>';
+    h += '</div>';
+
+    /* 3. GS TERCAPAI */
     h += '<div class="gs-sum-card">';
     h += '<div class="lbl">GS TERCAPAI</div>';
-    h += '<div class="val">' + gsYes + '<small>/' + totalToko + '</small></div>';
-    h += '<div class="sub"><span class="pb-b ' + (gsP >= 60 ? 'ph-h' : gsP >= 40 ? 'ph-m' : 'ph-l') + '">' + gsP + '%</span></div>';
+    h += '<div class="val">' + gsYes + ' <small>Toko</small></div>';
+    h += '<div class="sub"><span class="pb-b ' + (gsP >= 50 ? 'ph-h' : gsP >= 30 ? 'ph-m' : 'ph-l') + '">' + gsP + '%</span></div>';
     h += '</div>';
 
+    /* 4. GAP GS KE TARGET */
     h += '<div class="gs-sum-card">';
-    h += '<div class="lbl">GS BELUM</div>';
-    h += '<div class="val">' + (totalToko - gsYes) + '</div>';
-    h += '<div class="sub"><span class="pb-b ph-l">' + (100 - gsP) + '%</span></div>';
-    h += '</div>';
-
-    h += '<div class="gs-sum-card">';
-    h += '<div class="lbl">SKU ACT/TARGET</div>';
-    h += '<div class="val">' + totalACT + '<small>/' + totalSKUTgt + '</small></div>';
-    h += '<div class="sub"><span class="pb-b ' + (skuP >= 70 ? 'ph-h' : skuP >= 40 ? 'ph-m' : 'ph-l') + '">' + skuP + '%</span></div>';
-    h += '</div>';
-
-    h += '<div class="gs-sum-card">';
-    h += '<div class="lbl">AVG SKU/TOKO</div>';
-    h += '<div class="val">' + avgSKU + '</div>';
-    h += '</div>';
-
-    h += '<div class="gs-sum-card">';
-    h += '<div class="lbl">TOTAL GAP SKU</div>';
-    h += '<div class="val" style="color:' + (gapSKU >= 0 ? '#22c55e' : '#ef4444') + '">' + (gapSKU >= 0 ? '+' : '') + gapSKU + '</div>';
+    h += '<div class="lbl">GAP GS KE TARGET</div>';
+    h += '<div class="val" style="color:' + (gapGS >= 0 ? '#22c55e' : '#ef4444') + '">' + (gapGS >= 0 ? '+' : '') + gapGS + ' <small>Toko</small></div>';
+    h += '<div class="sub">' + (gapGS >= 0 ? '<span class="pb-b ph-h">✅ Target Tercapai</span>' : '<span class="pb-b ph-l">Kurang ' + Math.abs(gapGS) + ' Toko</span>') + '</div>';
     h += '</div>';
 
     h += '</div>';
@@ -455,6 +458,13 @@ function renderStoreGrid(data) {
         var statusP = d.skuTarget > 0 ? Math.round((d.act / d.skuTarget) * 100) : 0;
         var flagCls = d.gsFlag === 1 ? 'gs-flag-yes' : 'gs-flag-no';
         var flagTxt = d.gsFlag === 1 ? '✅ GS' : '❌ NO';
+
+        /* Hampir capai: beri badge kuning */
+        if (d.gsFlag === 0 && d.gap >= -5 && d.gap < 0) {
+            flagCls = 'gs-flag-hampir';
+            flagTxt = '🟡 -' + Math.abs(d.gap);
+        }
+
         var barCls  = statusP >= 100 ? 'pg-green' : (statusP >= 70 ? 'pg-yellow' : 'pg-red');
         var pctCls  = statusP >= 100 ? 'ph-h' : (statusP >= 70 ? 'ph-m' : 'ph-l');
 

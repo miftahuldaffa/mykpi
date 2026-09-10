@@ -1069,3 +1069,36 @@ body {
     }
 }
 
+
+/* ============================================
+   GS SUMMARY 4 CARDS + HAMPIR CAPAI BADGE
+   Append di akhir shared.css
+   ============================================ */
+
+/* Summary grid: 4 kolom di desktop */
+.gs-sum-4 {
+    grid-template-columns: repeat(4, 1fr) !important;
+}
+
+@media (max-width: 768px) {
+    .gs-sum-4 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (max-width: 400px) {
+    .gs-sum-4 {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Badge "Hampir Capai" — kuning */
+.gs-flag-hampir {
+    background: var(--mid-bg);
+    color: var(--mid-c);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: .6rem;
+}
+
