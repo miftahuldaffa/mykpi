@@ -886,3 +886,186 @@ body {
     }
 }
 
+
+/* ============================================
+   FILTER BAR REDESIGN - Desktop & Mobile
+   Append di akhir shared.css
+   ============================================ */
+
+/* Override ctrl-bar menjadi vertical layout */
+.ctrl-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px 20px;
+}
+
+/* Title row */
+.ctrl-bar-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--bdr);
+}
+
+.ctrl-bar-title h3 {
+    color: var(--acc);
+    font-size: .88rem;
+    font-weight: 700;
+    white-space: nowrap;
+    margin: 0;
+}
+
+/* Filter grid: 6 kolom di desktop */
+.ctrl-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+}
+
+/* Setiap filter group: label di atas, select di bawah */
+.ctrl-grid .ctrl-grp {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+}
+
+.ctrl-grid .ctrl-grp label {
+    font-size: .65rem;
+    color: var(--t3);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.ctrl-grid .ctrl-grp select {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--inp-bdr);
+    background: var(--inp-bg);
+    color: var(--t1);
+    font-size: .78rem;
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b5b7e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.ctrl-grid .ctrl-grp select:hover {
+    border-color: var(--acc);
+}
+
+.ctrl-grid .ctrl-grp select:focus {
+    outline: none;
+    border-color: var(--acc);
+    box-shadow: 0 0 0 3px rgba(74,26,122,.1);
+}
+
+/* Search row: full-width, prominent */
+.ctrl-search-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 10px;
+    border-top: 1px solid var(--bdr);
+}
+
+.ctrl-search-row label {
+    font-size: .68rem;
+    color: var(--t3);
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.ctrl-search-row input {
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1.5px dashed var(--inp-bdr);
+    background: var(--inp-bg);
+    color: var(--t1);
+    font-family: 'Poppins', sans-serif;
+    font-size: .85rem;
+    font-weight: 500;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.ctrl-search-row input:hover {
+    border-color: var(--acc);
+    background: var(--card);
+}
+
+.ctrl-search-row input:focus {
+    border-style: solid;
+    border-color: var(--acc);
+    background: var(--card);
+    box-shadow: 0 0 0 3px rgba(74,26,122,.1);
+}
+
+.ctrl-search-row input::placeholder {
+    color: var(--t3);
+    font-weight: 400;
+    opacity: 0.8;
+}
+
+/* ===== DARK MODE ADJUSTMENTS ===== */
+[data-theme="dark"] .ctrl-grid .ctrl-grp select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a8a0b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+
+/* ===== TABLET: 3 kolom ===== */
+@media (max-width: 1024px) {
+    .ctrl-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ===== MOBILE: 2 kolom, search full ===== */
+@media (max-width: 768px) {
+    .ctrl-bar {
+        padding: 14px 14px;
+        gap: 10px;
+    }
+
+    .ctrl-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .ctrl-grid .ctrl-grp select {
+        padding: 10px 12px;
+        font-size: .82rem;
+    }
+
+    .ctrl-search-row input {
+        padding: 12px 14px;
+        font-size: .88rem;
+    }
+}
+
+/* ===== SMALL MOBILE: tetap 2 kolom ===== */
+@media (max-width: 400px) {
+    .ctrl-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+
+    .ctrl-grid .ctrl-grp select {
+        font-size: .75rem;
+        padding: 8px 10px;
+    }
+}
+

@@ -34,68 +34,74 @@
 
     <div class="wrap">
 
-        <!-- FILTER BAR -->
+        <!-- FILTER BAR - REDESIGNED -->
         <div class="ctrl-bar">
-            <h3>📍 GS Tracking</h3>
-
-            <div class="ctrl-grp">
-                <label>Bulan</label>
-                <select id="selMonth">
-                    <option value="M01">Januari</option>
-                    <option value="M02">Februari</option>
-                    <option value="M03">Maret</option>
-                    <option value="M04">April</option>
-                    <option value="M05">Mei</option>
-                    <option value="M06">Juni</option>
-                    <option value="M07">Juli</option>
-                    <option value="M08">Agustus</option>
-                    <option value="M09">September</option>
-                    <option value="M10">Oktober</option>
-                    <option value="M11">November</option>
-                    <option value="M12">Desember</option>
-                </select>
+            <div class="ctrl-bar-title">
+                <h3>📍 GS Tracking</h3>
             </div>
 
-            <div class="ctrl-grp">
-                <label>Type</label>
-                <select id="filterType">
-                    <option value="all">Semua Type</option>
-                </select>
+            <div class="ctrl-grid">
+                <!-- Row 1: Main filters -->
+                <div class="ctrl-grp">
+                    <label>Bulan</label>
+                    <select id="selMonth">
+                        <option value="M01">Januari</option>
+                        <option value="M02">Februari</option>
+                        <option value="M03">Maret</option>
+                        <option value="M04">April</option>
+                        <option value="M05">Mei</option>
+                        <option value="M06">Juni</option>
+                        <option value="M07">Juli</option>
+                        <option value="M08">Agustus</option>
+                        <option value="M09">September</option>
+                        <option value="M10">Oktober</option>
+                        <option value="M11">November</option>
+                        <option value="M12">Desember</option>
+                    </select>
+                </div>
+
+                <div class="ctrl-grp">
+                    <label>Type</label>
+                    <select id="filterType">
+                        <option value="all">Semua Type</option>
+                    </select>
+                </div>
+
+                <div class="ctrl-grp">
+                    <label>Salesman</label>
+                    <select id="filterSales">
+                        <option value="all">Semua Salesman</option>
+                    </select>
+                </div>
+
+                <div class="ctrl-grp">
+                    <label>Hari Kerja</label>
+                    <select id="filterHK">
+                        <option value="all">Semua Hari</option>
+                    </select>
+                </div>
+
+                <div class="ctrl-grp">
+                    <label>Pola</label>
+                    <select id="filterPola">
+                        <option value="all">Semua Pola</option>
+                    </select>
+                </div>
+
+                <div class="ctrl-grp">
+                    <label>GS Flag</label>
+                    <select id="filterGS">
+                        <option value="all">Semua</option>
+                        <option value="1">✅ Tercapai</option>
+                        <option value="0">❌ Belum</option>
+                    </select>
+                </div>
             </div>
 
-            <div class="ctrl-grp">
-                <label>Salesman</label>
-                <select id="filterSales">
-                    <option value="all">Semua Salesman</option>
-                </select>
-            </div>
-
-            <div class="ctrl-grp">
-                <label>Hari Kerja</label>
-                <select id="filterHK">
-                    <option value="all">Semua Hari</option>
-                </select>
-            </div>
-
-            <div class="ctrl-grp">
-                <label>Pola</label>
-                <select id="filterPola">
-                    <option value="all">Semua Pola</option>
-                </select>
-            </div>
-
-            <div class="ctrl-grp">
-                <label>GS Flag</label>
-                <select id="filterGS">
-                    <option value="all">Semua</option>
-                    <option value="1">✅ Tercapai</option>
-                    <option value="0">❌ Belum</option>
-                </select>
-            </div>
-
-            <div class="ctrl-grp ctrl-search">
-                <label>Cari Toko</label>
-                <input type="text" id="searchToko" placeholder="Ketik kode / nama toko..." autocomplete="off">
+            <!-- Search row: full width -->
+            <div class="ctrl-search-row">
+                <label>🔍 Cari Toko</label>
+                <input type="text" id="searchToko" placeholder="Ketik kode atau nama toko..." autocomplete="off">
             </div>
         </div>
 
@@ -116,7 +122,7 @@
             <div class="sec-body" id="salesSummary"></div>
         </div>
 
-        <!-- DETAIL PER TOKO (muncul hanya setelah filter salesman / search) -->
+        <!-- DETAIL PER TOKO -->
         <div class="section" id="storeSection">
             <div class="sec-header">
                 <h2>🏪 Detail Per Toko</h2>

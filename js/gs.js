@@ -529,4 +529,3 @@ function toggleStore(el) {
         detail.classList.add('open');
     }
 }
-
