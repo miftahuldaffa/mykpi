@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setDefaultMonthGS();
 
     var selMonth    = document.getElementById('selMonth');
-    var filterArea  = document.getElementById('filterArea');
     var filterType  = document.getElementById('filterType');
     var filterSales = document.getElementById('filterSales');
     var filterHK    = document.getElementById('filterHK');
@@ -19,7 +18,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var themeBtn    = document.getElementById('themeBtn');
 
     if (selMonth)    selMonth.onchange    = function() { CURRENT_MONTH_GS = this.value; loadGSData(); };
-    if (filterArea)  filterArea.onchange  = function() { renderGS(); };
     if (filterType)  filterType.onchange  = function() { renderGS(); };
     if (filterSales) filterSales.onchange = function() { renderGS(); };
     if (filterHK)    filterHK.onchange    = function() { renderGS(); };
@@ -105,7 +103,6 @@ function parseGSData(txt) {
     var COL_KODE_SLS   = 0;
     var COL_NAMA_SLS   = 1;
     var COL_TYPE_SLS   = 2;
-    // AREA column removed — indices shifted
     var COL_STORE_CODE = 3;
     var COL_STORE_NAME = 4;
     var COL_HARI       = 5;
@@ -137,7 +134,6 @@ function parseGSData(txt) {
             kodeSls  : (cols[COL_KODE_SLS]   || '').trim().replace(/\"/g, ''),
             namaSls  : (cols[COL_NAMA_SLS]   || '').trim().replace(/\"/g, ''),
             typeSls  : (cols[COL_TYPE_SLS]   || '').trim().replace(/\"/g, ''),
-            area     : '',  // AREA column no longer exists
             storeCode: (cols[COL_STORE_CODE] || '').trim().replace(/\"/g, ''),
             storeName: storeName,
             hari     : (cols[COL_HARI]       || '').trim().replace(/\"/g, ''),
@@ -163,7 +159,6 @@ function parseGSData(txt) {
 
 /* ===== POPULATE FILTERS ===== */
 function populateFiltersGS() {
-    var areaSet  = {};
     var typeSet  = {};
     var salesSet = {};
     var hkSet    = {};
@@ -171,21 +166,10 @@ function populateFiltersGS() {
 
     for (var i = 0; i < GS_DATA.length; i++) {
         var d = GS_DATA[i];
-        if (d.area)    areaSet[d.area]    = true;
         if (d.typeSls) typeSet[d.typeSls] = true;
         if (d.namaSls) salesSet[d.namaSls]= true;
         if (d.hari)    hkSet[d.hari]      = true;
         if (d.pola)    polaSet[d.pola]    = true;
-    }
-
-    var selArea = document.getElementById('filterArea');
-    if (selArea) {
-        selArea.innerHTML = '<option value="all">Semua Area</option>';
-        Object.keys(areaSet).sort().forEach(function(a) {
-            var o = document.createElement('option');
-            o.value = a; o.textContent = a;
-            selArea.appendChild(o);
-        });
     }
 
     var selType = document.getElementById('filterType');
@@ -231,7 +215,6 @@ function populateFiltersGS() {
 
 /* ===== GET FILTERED DATA ===== */
 function getFilteredGS() {
-    var vArea   = document.getElementById('filterArea')  ? document.getElementById('filterArea').value  : 'all';
     var vType   = document.getElementById('filterType')  ? document.getElementById('filterType').value  : 'all';
     var vSales  = document.getElementById('filterSales') ? document.getElementById('filterSales').value : 'all';
     var vHK     = document.getElementById('filterHK')    ? document.getElementById('filterHK').value    : 'all';
@@ -242,13 +225,19 @@ function getFilteredGS() {
     var r = [];
     for (var i = 0; i < GS_DATA.length; i++) {
         var d = GS_DATA[i];
-        if (vArea  !== 'all' && d.area    !== vArea)  continue;
         if (vType  !== 'all' && d.typeSls !== vType)  continue;
         if (vSales !== 'all' && d.namaSls !== vSales) continue;
         if (vHK    !== 'all' && d.hari    !== vHK)    continue;
         if (vPola  !== 'all' && d.pola    !== vPola)  continue;
         if (vGS    !== 'all' && String(d.gsFlag) !== vGS) continue;
-        if (vSearch && d.storeName.toLowerCase().indexOf(vSearch) === -1) continue;
+
+        /* Search by Store Code OR Store Name */
+        if (vSearch) {
+            var matchName = d.storeName.toLowerCase().indexOf(vSearch) !== -1;
+            var matchCode = d.storeCode.toLowerCase().indexOf(vSearch) !== -1;
+            if (!matchName && !matchCode) continue;
+        }
+
         r.push(d);
     }
     return r;
@@ -271,7 +260,7 @@ function renderGS() {
         if (el) {
             el.innerHTML = '<div class="store-hint">' +
                 '<span>👆</span>' +
-                '<p>Pilih <strong>Salesman</strong> atau ketik <strong>Nama Toko</strong> untuk melihat detail per toko.</p>' +
+                '<p>Pilih <strong>Salesman</strong> atau ketik <strong>Kode / Nama Toko</strong> untuk melihat detail per toko.</p>' +
                 '</div>';
         }
     }
@@ -445,10 +434,7 @@ function renderSalesSummary(data) {
     el.innerHTML = h;
 }
 
-/* ===== RENDER STORE GRID =====
-   SORT: Gap terbesar dulu (0, -5, -7)
-   → descending: yang paling mendekati target di atas
-*/
+/* ===== RENDER STORE GRID ===== */
 function renderStoreGrid(data) {
     var el = document.getElementById('storeGrid');
     if (!el) return;
@@ -457,7 +443,6 @@ function renderStoreGrid(data) {
         return;
     }
 
-    // Sort dari gap terbesar ke terkecil (0 → -5 → -7)
     var sorted = data.slice().sort(function(a, b) {
         return b.gap - a.gap;
     });
