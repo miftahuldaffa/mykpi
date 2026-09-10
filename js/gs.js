@@ -1,84 +1,9 @@
 
-/* ===== GS TRACKING PAGE ===== */
-var GS_DATA = [];
-var GS_PRODUCTS = [];
-var CURRENT_MONTH_GS = 'M07';
-
-document.addEventListener('DOMContentLoaded', function() {
-    initTheme();
-    setDefaultMonthGS();
-
-    var selMonth    = document.getElementById('selMonth');
-    var filterType  = document.getElementById('filterType');
-    var filterSales = document.getElementById('filterSales');
-    var filterHK    = document.getElementById('filterHK');
-    var filterPola  = document.getElementById('filterPola');
-    var filterGS    = document.getElementById('filterGS');
-    var searchToko  = document.getElementById('searchToko');
-    var themeBtn    = document.getElementById('themeBtn');
-
-    if (selMonth)    selMonth.onchange    = function() { CURRENT_MONTH_GS = this.value; loadGSData(); };
-    if (filterType)  filterType.onchange  = function() { renderGS(); };
-    if (filterSales) filterSales.onchange = function() { renderGS(); };
-    if (filterHK)    filterHK.onchange    = function() { renderGS(); };
-    if (filterPola)  filterPola.onchange  = function() { renderGS(); };
-    if (filterGS)    filterGS.onchange    = function() { renderGS(); };
-    if (searchToko)  searchToko.oninput   = function() { renderGS(); };
-    if (themeBtn)    themeBtn.onclick     = togTheme;
-
-    loadGSData();
-});
-
-function setDefaultMonthGS() {
-    var now = new Date();
-    var m = now.getMonth() + 1;
-    var key = 'M' + (m < 10 ? '0' + m : m);
-    var sel = document.getElementById('selMonth');
-    if (!sel) return;
-    for (var i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].value === key) {
-            sel.value = key;
-            CURRENT_MONTH_GS = key;
-            break;
-        }
-    }
-}
-
-/* ===== LOAD DATA ===== */
-function loadGSData() {
-    var sb = document.getElementById('stBadge');
-    var st = document.getElementById('stTxt');
-    if (sb) sb.className = 'badge st-load';
-    if (st) st.textContent = 'Loading...';
-
-    var url = CONFIG.getURL('GS', CURRENT_MONTH_GS);
-
-    fetch(url)
-        .then(function(r) { if (r.ok) return r.text(); return ''; })
-        .then(function(txt) {
-            if (txt) {
-                var parsed = parseGSData(txt);
-                GS_DATA     = parsed.data;
-                GS_PRODUCTS = parsed.products;
-
-                if (sb) sb.className = 'badge st-conn';
-                if (st) st.textContent = 'Live - ' + GS_DATA.length + ' Toko';
-
-                populateFiltersGS();
-                renderGS();
-            } else {
-                if (sb) sb.className = 'badge st-err';
-                if (st) st.textContent = 'No Data';
-            }
-        })
-        .catch(function() {
-            if (sb) sb.className = 'badge st-err';
-            if (st) st.textContent = 'Error';
-        });
-}
-
 /* ===== PARSE GS CSV =====
-   STRUKTUR BARU (tanpa kolom AREA):
+   DYNAMIC: Auto-detect header row & read products from columns J+
+   Setiap bulan produk di Google Sheet bisa beda, website otomatis ikut.
+   
+   STRUKTUR (tanpa kolom AREA):
    A = KODE SLS      (0)
    B = Nama SLS      (1)
    C = TYPE SLS      (2)
@@ -88,7 +13,7 @@ function loadGSData() {
    G = Pola          (6)
    H = SKU Target    (7)
    I = ACT           (8)
-   J+ = Produk SKU   (9+)
+   J+ = Produk SKU   (9+)  ← DINAMIS, dibaca dari header
 */
 function parseGSData(txt) {
     var NL = String.fromCharCode(10);
@@ -98,25 +23,54 @@ function parseGSData(txt) {
 
     if (lines.length < 2) return { data: [], products: [] };
 
-    var headers = splitCSVLine(lines[7]);
+    /* ===== AUTO-DETECT HEADER ROW ===== */
+    var headerIdx = -1;
+    for (var i = 0; i < lines.length; i++) {
+        var lineUpper = lines[i].toUpperCase();
+        if (lineUpper.indexOf('KODE SLS') !== -1 || lineUpper.indexOf('STORE CODE') !== -1 || lineUpper.indexOf('NAMA SLS') !== -1) {
+            headerIdx = i;
+            break;
+        }
+    }
+    if (headerIdx === -1) return { data: [], products: [] };
 
-    var COL_KODE_SLS   = 0;
-    var COL_NAMA_SLS   = 1;
-    var COL_TYPE_SLS   = 2;
-    var COL_STORE_CODE = 3;
-    var COL_STORE_NAME = 4;
-    var COL_HARI       = 5;
-    var COL_POLA       = 6;
-    var COL_SKU_TGT    = 7;
-    var COL_ACT        = 8;
-    var COL_PROD_START = 9;
+    var headers = splitCSVLine(lines[headerIdx]);
+
+    /* ===== FIND KEY COLUMNS DYNAMICALLY ===== */
+    var COL_KODE_SLS   = -1;
+    var COL_NAMA_SLS   = -1;
+    var COL_TYPE_SLS   = -1;
+    var COL_STORE_CODE = -1;
+    var COL_STORE_NAME = -1;
+    var COL_HARI       = -1;
+    var COL_POLA       = -1;
+    var COL_SKU_TGT    = -1;
+    var COL_ACT        = -1;
+    var COL_PROD_START = -1;
+
+    for (var c = 0; c < headers.length; c++) {
+        var hu = headers[c].trim().replace(/\"/g, '').toUpperCase();
+        if (hu.indexOf('KODE') !== -1 && hu.indexOf('SLS') !== -1) COL_KODE_SLS = c;
+        else if (hu.indexOf('NAMA') !== -1 && hu.indexOf('SLS') !== -1) COL_NAMA_SLS = c;
+        else if (hu === 'TYPE' || hu === 'TYPE SLS' || hu === 'TIPE') COL_TYPE_SLS = c;
+        else if (hu.indexOf('STORE') !== -1 && hu.indexOf('CODE') !== -1) COL_STORE_CODE = c;
+        else if (hu.indexOf('STORE') !== -1 && hu.indexOf('NAME') !== -1) COL_STORE_NAME = c;
+        else if (hu === 'HARI' || hu === 'DAY') COL_HARI = c;
+        else if (hu === 'POLA' || hu === 'PATTERN') COL_POLA = c;
+        else if (hu.indexOf('SKU') !== -1 && hu.indexOf('TARGET') !== -1) COL_SKU_TGT = c;
+        else if (hu === 'ACT' || hu === 'ACTUAL') COL_ACT = c;
+    }
+
+    /* Product columns = everything AFTER ACT column */
+    COL_PROD_START = (COL_ACT !== -1) ? COL_ACT + 1 : 9;
 
     for (var c = COL_PROD_START; c < headers.length; c++) {
         var pName = headers[c].trim().replace(/\"/g, '');
         if (pName) products.push(pName);
     }
 
-    for (var r = 1; r < lines.length; r++) {
+    /* ===== PARSE DATA ROWS (starting after header) ===== */
+    for (var r = headerIdx + 1; r < lines.length; r++) {
         var line = lines[r].trim();
         if (!line) continue;
         var cols = splitCSVLine(line);
@@ -157,385 +111,3 @@ function parseGSData(txt) {
     return { data: data, products: products };
 }
 
-/* ===== POPULATE FILTERS ===== */
-function populateFiltersGS() {
-    var typeSet  = {};
-    var salesSet = {};
-    var hkSet    = {};
-    var polaSet  = {};
-
-    for (var i = 0; i < GS_DATA.length; i++) {
-        var d = GS_DATA[i];
-        if (d.typeSls) typeSet[d.typeSls] = true;
-        if (d.namaSls) salesSet[d.namaSls]= true;
-        if (d.hari)    hkSet[d.hari]      = true;
-        if (d.pola)    polaSet[d.pola]    = true;
-    }
-
-    var selType = document.getElementById('filterType');
-    if (selType) {
-        selType.innerHTML = '<option value="all">Semua Type</option>';
-        Object.keys(typeSet).sort().forEach(function(t) {
-            var o = document.createElement('option');
-            o.value = t; o.textContent = t;
-            selType.appendChild(o);
-        });
-    }
-
-    var selSales = document.getElementById('filterSales');
-    if (selSales) {
-        selSales.innerHTML = '<option value="all">Semua Salesman</option>';
-        Object.keys(salesSet).sort().forEach(function(s) {
-            var o = document.createElement('option');
-            o.value = s; o.textContent = s;
-            selSales.appendChild(o);
-        });
-    }
-
-    var selHK = document.getElementById('filterHK');
-    if (selHK) {
-        selHK.innerHTML = '<option value="all">Semua Hari</option>';
-        Object.keys(hkSet).sort().forEach(function(h) {
-            var o = document.createElement('option');
-            o.value = h; o.textContent = h;
-            selHK.appendChild(o);
-        });
-    }
-
-    var selPola = document.getElementById('filterPola');
-    if (selPola) {
-        selPola.innerHTML = '<option value="all">Semua Pola</option>';
-        Object.keys(polaSet).sort().forEach(function(p) {
-            var o = document.createElement('option');
-            o.value = p; o.textContent = p;
-            selPola.appendChild(o);
-        });
-    }
-}
-
-/* ===== GET FILTERED DATA ===== */
-function getFilteredGS() {
-    var vType   = document.getElementById('filterType')  ? document.getElementById('filterType').value  : 'all';
-    var vSales  = document.getElementById('filterSales') ? document.getElementById('filterSales').value : 'all';
-    var vHK     = document.getElementById('filterHK')    ? document.getElementById('filterHK').value    : 'all';
-    var vPola   = document.getElementById('filterPola')  ? document.getElementById('filterPola').value  : 'all';
-    var vGS     = document.getElementById('filterGS')    ? document.getElementById('filterGS').value    : 'all';
-    var vSearch = document.getElementById('searchToko')  ? document.getElementById('searchToko').value.toLowerCase().trim() : '';
-
-    var r = [];
-    for (var i = 0; i < GS_DATA.length; i++) {
-        var d = GS_DATA[i];
-        if (vType  !== 'all' && d.typeSls !== vType)  continue;
-        if (vSales !== 'all' && d.namaSls !== vSales) continue;
-        if (vHK    !== 'all' && d.hari    !== vHK)    continue;
-        if (vPola  !== 'all' && d.pola    !== vPola)  continue;
-
-        /* GS Flag filter: 1=tercapai, 0=belum, hampir=gap -5 s/d -1 */
-        if (vGS !== 'all') {
-            if (vGS === 'hampir') {
-                /* Hampir Capai: belum tercapai tapi gap hanya -1 s/d -5 */
-                if (d.gsFlag === 1 || d.gap < -5 || d.gap >= 0) continue;
-            } else if (vGS === '1') {
-                if (d.gsFlag !== 1) continue;
-            } else if (vGS === '0') {
-                if (d.gsFlag !== 0) continue;
-            }
-        }
-
-        /* Search by Store Code OR Store Name */
-        if (vSearch) {
-            var matchName = d.storeName.toLowerCase().indexOf(vSearch) !== -1;
-            var matchCode = d.storeCode.toLowerCase().indexOf(vSearch) !== -1;
-            if (!matchName && !matchCode) continue;
-        }
-
-        r.push(d);
-    }
-    return r;
-}
-
-/* ===== RENDER ALL ===== */
-function renderGS() {
-    var fd = getFilteredGS();
-    renderSummary(fd);
-    renderSalesSummary(fd);
-
-    var vSales  = document.getElementById('filterSales') ? document.getElementById('filterSales').value : 'all';
-    var vSearch = document.getElementById('searchToko')  ? document.getElementById('searchToko').value.trim() : '';
-
-    var el = document.getElementById('storeGrid');
-
-    if (vSales !== 'all' || vSearch.length > 0) {
-        renderStoreGrid(fd);
-    } else {
-        if (el) {
-            el.innerHTML = '<div class="store-hint">' +
-                '<span>👆</span>' +
-                '<p>Pilih <strong>Salesman</strong> atau ketik <strong>Kode / Nama Toko</strong> untuk melihat detail per toko.</p>' +
-                '</div>';
-        }
-    }
-
-    var cnt = document.getElementById('tokoCount');
-    if (cnt) cnt.textContent = fd.length + ' Toko';
-}
-
-/* ===== RENDER SUMMARY CARDS =====
-   4 Cards: Total Toko | Target GS (50%) | GS Tercapai | Gap GS ke Target
-*/
-function renderSummary(data) {
-    var el = document.getElementById('sumCards');
-    if (!el) return;
-
-    var totalToko = data.length;
-    var gsYes     = 0;
-
-    for (var i = 0; i < data.length; i++) {
-        if (data[i].gsFlag === 1) gsYes++;
-    }
-
-    var targetGS = Math.ceil(totalToko * 50 / 100);
-    var gapGS    = gsYes - targetGS;
-    var gsP      = totalToko > 0 ? Math.round((gsYes / totalToko) * 100) : 0;
-    var tgtP     = totalToko > 0 ? Math.round((targetGS / totalToko) * 100) : 0;
-
-    var h = '<div class="gs-sum-grid gs-sum-4">';
-
-    /* 1. TOTAL TOKO */
-    h += '<div class="gs-sum-card highlight">';
-    h += '<div class="lbl">TOTAL TOKO</div>';
-    h += '<div class="val">' + totalToko + '</div>';
-    h += '</div>';
-
-    /* 2. TARGET GS (50%) */
-    h += '<div class="gs-sum-card">';
-    h += '<div class="lbl">TARGET GS (50%)</div>';
-    h += '<div class="val">' + targetGS + ' <small>Toko</small></div>';
-    h += '<div class="sub"><span class="pb-b ph-m">' + tgtP + '%</span></div>';
-    h += '</div>';
-
-    /* 3. GS TERCAPAI */
-    h += '<div class="gs-sum-card">';
-    h += '<div class="lbl">GS TERCAPAI</div>';
-    h += '<div class="val">' + gsYes + ' <small>Toko</small></div>';
-    h += '<div class="sub"><span class="pb-b ' + (gsP >= 50 ? 'ph-h' : gsP >= 30 ? 'ph-m' : 'ph-l') + '">' + gsP + '%</span></div>';
-    h += '</div>';
-
-    /* 4. GAP GS KE TARGET */
-    h += '<div class="gs-sum-card">';
-    h += '<div class="lbl">GAP GS KE TARGET</div>';
-    h += '<div class="val" style="color:' + (gapGS >= 0 ? '#22c55e' : '#ef4444') + '">' + (gapGS >= 0 ? '+' : '') + gapGS + ' <small>Toko</small></div>';
-    h += '<div class="sub">' + (gapGS >= 0 ? '<span class="pb-b ph-h">✅ Target Tercapai</span>' : '<span class="pb-b ph-l">Kurang ' + Math.abs(gapGS) + ' Toko</span>') + '</div>';
-    h += '</div>';
-
-    h += '</div>';
-    el.innerHTML = h;
-}
-
-/* ===== RENDER SALESMAN SUMMARY ===== */
-function renderSalesSummary(data) {
-    var el = document.getElementById('salesSummary');
-    if (!el) return;
-    if (data.length === 0) {
-        el.innerHTML = '<p style="color:var(--t2)">Tidak ada data</p>';
-        return;
-    }
-
-    var salesGroup = {};
-    for (var i = 0; i < data.length; i++) {
-        var d   = data[i];
-        var key = d.kodeSls || d.namaSls || 'Unknown';
-        if (!salesGroup[key]) {
-            salesGroup[key] = {
-                kodeSls : d.kodeSls,
-                namaSls : d.namaSls,
-                typeSls : d.typeSls,
-                stores  : [],
-                gsYes   : 0,
-                totalAct: 0,
-                totalTgt: 0
-            };
-        }
-        salesGroup[key].stores.push(d);
-        if (d.gsFlag === 1) salesGroup[key].gsYes++;
-        salesGroup[key].totalAct += d.act;
-        salesGroup[key].totalTgt += d.skuTarget;
-    }
-
-    var h = '<div class="sls-summary-grid">';
-    var salesKeys = Object.keys(salesGroup).sort();
-
-    for (var s = 0; s < salesKeys.length; s++) {
-        var sKey        = salesKeys[s];
-        var sg          = salesGroup[sKey];
-        var totalStores = sg.stores.length;
-        var gsP         = totalStores > 0 ? Math.round((sg.gsYes / totalStores) * 100) : 0;
-
-        var typeLower = (sg.typeSls || '').toLowerCase();
-        var tgtPct    = (typeLower === 'whs' || typeLower === 'so') ? 60 : 50;
-
-        var tgtToko = Math.ceil(totalStores * tgtPct / 100);
-        var gapToko = sg.gsYes - tgtToko;
-        var gapCls  = gapToko >= 0 ? 'ph-h' : 'ph-l';
-        var gapTxt  = (gapToko >= 0 ? '+' : '') + gapToko;
-
-        var barCls = gsP >= tgtPct ? 'pg-green' : (gsP >= tgtPct * 0.7 ? 'pg-yellow' : 'pg-red');
-        var pctCls = gsP >= tgtPct ? 'ph-h' : (gsP >= tgtPct * 0.7 ? 'ph-m' : 'ph-l');
-
-        h += '<div class="sls-card">';
-
-        h += '<div class="sls-card-head">';
-        h += '<div>';
-        h += '<div class="nm">' + sg.namaSls + '</div>';
-        h += '<div class="sub">' + sg.kodeSls + ' | ' + (sg.typeSls || '-') + ' | ' + totalStores + ' Toko</div>';
-        h += '</div>';
-        h += '<span class="pb-b ' + pctCls + '">' + gsP + '%</span>';
-        h += '</div>';
-
-        h += '<div class="sls-card-body">';
-        h += '<div class="sls-stats">';
-
-        h += '<div class="sls-stat">';
-        h += '<div class="s-lbl">GS ✅</div>';
-        h += '<div class="s-val">' + sg.gsYes + '/' + totalStores + '</div>';
-        h += '</div>';
-
-        h += '<div class="sls-stat">';
-        h += '<div class="s-lbl">TARGET</div>';
-        h += '<div class="s-val">' + tgtToko + ' <small>(' + tgtPct + '%)</small></div>';
-        h += '</div>';
-
-        h += '<div class="sls-stat">';
-        h += '<div class="s-lbl">GAP</div>';
-        h += '<div class="s-val"><span class="pb-b ' + gapCls + '">' + gapTxt + ' Toko</span></div>';
-        h += '</div>';
-
-        h += '<div class="sls-stat">';
-        h += '<div class="s-lbl">GS %</div>';
-        h += '<div class="s-val"><span class="pb-b ' + pctCls + '">' + gsP + '%</span></div>';
-        h += '</div>';
-
-        h += '</div>';
-
-        h += '<div class="gs-progress-wrap">';
-        h += '<div class="gs-progress">';
-        h += '<div class="gs-progress-bar ' + barCls + '" style="width:' + Math.min(gsP, 100) + '%"></div>';
-        h += '<div class="gs-target-line" style="left:' + tgtPct + '%"></div>';
-        h += '</div>';
-        h += '<div class="gs-progress-labels">';
-        h += '<span>0%</span>';
-        h += '<span class="gs-tgt-label" style="left:' + tgtPct + '%">▲' + tgtPct + '%</span>';
-        h += '<span>100%</span>';
-        h += '</div>';
-        h += '</div>';
-
-        h += '</div>';
-        h += '</div>';
-    }
-
-    h += '</div>';
-    el.innerHTML = h;
-}
-
-/* ===== RENDER STORE GRID ===== */
-function renderStoreGrid(data) {
-    var el = document.getElementById('storeGrid');
-    if (!el) return;
-    if (data.length === 0) {
-        el.innerHTML = '<p style="color:var(--t2)">Tidak ada data ditemukan</p>';
-        return;
-    }
-
-    var sorted = data.slice().sort(function(a, b) {
-        return b.gap - a.gap;
-    });
-
-    var h = '<div class="store-grid">';
-    h += '<div class="store-sort-info">Urutan: Gap terbesar → terkecil ↓</div>';
-
-    for (var i = 0; i < sorted.length; i++) {
-        var d       = sorted[i];
-        var statusP = d.skuTarget > 0 ? Math.round((d.act / d.skuTarget) * 100) : 0;
-        var flagCls = d.gsFlag === 1 ? 'gs-flag-yes' : 'gs-flag-no';
-        var flagTxt = d.gsFlag === 1 ? '✅ GS' : '❌ NO';
-
-        /* Hampir capai: beri badge kuning */
-        if (d.gsFlag === 0 && d.gap >= -5 && d.gap < 0) {
-            flagCls = 'gs-flag-hampir';
-            flagTxt = '🟡 -' + Math.abs(d.gap);
-        }
-
-        var barCls  = statusP >= 100 ? 'pg-green' : (statusP >= 70 ? 'pg-yellow' : 'pg-red');
-        var pctCls  = statusP >= 100 ? 'ph-h' : (statusP >= 70 ? 'ph-m' : 'ph-l');
-
-        h += '<div class="store-card">';
-
-        h += '<div class="store-head" onclick="toggleStore(this)">';
-        h += '<div class="s-info">';
-        h += '<span class="' + flagCls + '">' + flagTxt + '</span>';
-        h += '<div>';
-        h += '<div class="s-name">' + d.storeName + '</div>';
-        h += '<div class="s-code">' + d.storeCode + ' | Hari:' + (d.hari || '-') + ' | Pola:' + (d.pola || '-') + '</div>';
-        h += '<div class="s-code">' + d.namaSls + ' (' + (d.typeSls || '-') + ')</div>';
-        h += '</div>';
-        h += '</div>';
-        h += '<div class="s-metrics">';
-        h += '<span><strong>' + d.act + '</strong>/' + d.skuTarget + ' SKU</span>';
-        h += '<span class="pb-b ' + pctCls + '">' + statusP + '%</span>';
-        h += '<span style="font-size:0.7rem;color:' + (d.gap >= 0 ? '#22c55e' : '#ef4444') + ';font-weight:700">Gap ' + (d.gap >= 0 ? '+' : '') + d.gap + '</span>';
-        h += '</div>';
-        h += '</div>';
-
-        h += '<div class="store-detail">';
-        h += '<div class="sku-legend">';
-        h += '<span>✅ = Toko sudah punya SKU</span>';
-        h += '<span>❌ = Belum punya (peluang distribusi)</span>';
-        h += '</div>';
-
-        h += '<div class="sku-grid">';
-        for (var p = 0; p < GS_PRODUCTS.length; p++) {
-            var pName  = GS_PRODUCTS[p];
-            var skuVal = d.skus[pName] || 0;
-            var hasIt  = skuVal >= 1;
-            var skuCls = hasIt ? 'sku-item sku-yes' : 'sku-item sku-no';
-            var skuIcon= hasIt ? '✅' : '❌';
-
-            h += '<div class="' + skuCls + '">';
-            h += '<span class="sku-icon">' + skuIcon + '</span>';
-            h += '<span>' + pName + '</span>';
-            h += '</div>';
-        }
-        h += '</div>';
-
-        h += '<div class="store-gap">';
-        h += '<span>Gap: <strong style="color:' + (d.gap >= 0 ? '#22c55e' : '#ef4444') + '">' + (d.gap >= 0 ? '+' : '') + d.gap + '</strong></span>';
-        h += '<span>Target: ' + d.skuTarget + '</span>';
-        h += '<span>Actual: ' + d.act + '</span>';
-        h += '</div>';
-
-        h += '<div class="gs-progress" style="margin-top:8px"><div class="gs-progress-bar ' + barCls + '" style="width:' + Math.min(statusP, 100) + '%"></div></div>';
-        h += '</div>';
-
-        h += '</div>';
-    }
-
-    h += '</div>';
-    el.innerHTML = h;
-}
-
-/* ===== TOGGLE STORE DETAIL (ACCORDION) ===== */
-function toggleStore(el) {
-    var detail = el.nextElementSibling;
-    if (!detail) return;
-
-    var isOpen = detail.classList.contains('open');
-
-    var allOpen = document.querySelectorAll('.store-detail.open');
-    for (var i = 0; i < allOpen.length; i++) {
-        allOpen[i].classList.remove('open');
-    }
-
-    if (!isOpen) {
-        detail.classList.add('open');
-    }
-}
