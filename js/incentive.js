@@ -1,21 +1,21 @@
+
 /* ===== KPI INCENTIVE PAGE ===== */
 var CURRENT_MONTH = 'M06';
 var incentiveData = [];
 var schemeData = [];
+var gsDataForInc = [];   /* GS data for Greenstore summary */
 
 document.addEventListener('DOMContentLoaded', function() {
     initTheme();
     setDefaultMonth();
 
     var selMonth = document.getElementById('selMonth');
-    var selArea = document.getElementById('selArea');
     var selType = document.getElementById('selType');
     var selSales = document.getElementById('selSalesman');
     var inpHK = document.getElementById('inpHK');
     var inpTotHK = document.getElementById('inpTotHK');
 
     if (selMonth) selMonth.onchange = function() { CURRENT_MONTH = this.value; loadIncentiveData(); };
-    if (selArea) selArea.onchange = function() { renderIncentive(); };
     if (selType) selType.onchange = function() { renderIncentive(); };
     if (selSales) selSales.onchange = function() { renderIncentive(); };
     if (inpHK) inpHK.oninput = function() { renderIncentive(); };
@@ -44,8 +44,10 @@ function loadIncentiveData() {
     if (btnLoad) { btnLoad.className = 'badge st-load'; btnLoad.style.display = ''; }
     var url = CONFIG.getURL('INC', CURRENT_MONTH);
     var schUrl = CONFIG.getURL('SCH', CURRENT_MONTH);
+    var gsUrl = CONFIG.getURL('GS', CURRENT_MONTH);
     var done = 0;
-    var total = 2;
+    var total = 3;
+
     function checkRender() {
         done++;
         if (done >= total) {
@@ -59,12 +61,12 @@ function loadIncentiveData() {
                 txt.textContent = 'Live - ' + incentiveData.length + ' SLS';
                 btnLoad.appendChild(txt);
             }
-            populateAreaFilter(incentiveData, 'selArea');
             populateSalesFilter();
             renderIncentive();
         }
     }
 
+    /* Load Scheme */
     var x1 = new XMLHttpRequest();
     x1.onreadystatechange = function() {
         if (x1.readyState === 4) {
@@ -75,13 +77,14 @@ function loadIncentiveData() {
     x1.open('GET', schUrl, true);
     x1.send();
 
+    /* Load Incentive data */
     var x2 = new XMLHttpRequest();
     x2.onreadystatechange = function() {
         if (x2.readyState === 4) {
             if (x2.status === 200) {
                 incentiveData = parseData(x2.responseText);
 
-                // Baca Last Update dari kolom Y (index 24)
+                /* Baca Last Update dari kolom Y (index 24) */
                 var lines = x2.responseText.split(String.fromCharCode(10));
                 var lastUpdate = '';
                 var COL_LAST_UPDATE = 24;
@@ -103,8 +106,111 @@ function loadIncentiveData() {
     };
     x2.open('GET', url, true);
     x2.send();
+
+    /* Load GS data for Greenstore summary */
+    var x3 = new XMLHttpRequest();
+    x3.onreadystatechange = function() {
+        if (x3.readyState === 4) {
+            if (x3.status === 200) {
+                gsDataForInc = parseGSForIncentive(x3.responseText);
+            }
+            checkRender();
+        }
+    };
+    x3.open('GET', gsUrl, true);
+    x3.send();
 }
 
+/* ===== PARSE GS DATA (LIGHTWEIGHT) for Greenstore summary ===== */
+function parseGSForIncentive(txt) {
+    var NL = String.fromCharCode(10);
+    var lines = txt.split(NL);
+    var data = [];
+
+    if (lines.length < 2) return data;
+
+    /* Auto-detect header */
+    var headerIdx = -1;
+    for (var i = 0; i < lines.length; i++) {
+        var upper = lines[i].toUpperCase();
+        if (upper.indexOf('KODE SLS') !== -1 && upper.indexOf('STORE') !== -1) {
+            headerIdx = i;
+            break;
+        }
+    }
+    if (headerIdx === -1) {
+        for (var i = 0; i < lines.length; i++) {
+            if (lines[i].toUpperCase().indexOf('SKU') !== -1 && lines[i].toUpperCase().indexOf('TARGET') !== -1) {
+                headerIdx = i;
+                break;
+            }
+        }
+    }
+    if (headerIdx === -1) return data;
+
+    var headers = splitCSVLine(lines[headerIdx]);
+
+    var COL_KODE = -1, COL_NAMA = -1, COL_TYPE = -1, COL_STORE = -1, COL_TGT = -1, COL_ACT = -1;
+    for (var c = 0; c < headers.length; c++) {
+        var hu = headers[c].toUpperCase().trim();
+        if (hu === 'KODE SLS' || hu === 'KODE_SLS')              COL_KODE = c;
+        else if (hu === 'NAMA SLS' || hu === 'NAMA_SLS')         COL_NAMA = c;
+        else if (hu === 'TYPE SLS' || hu === 'TYPE_SLS' || hu === 'TYPE') COL_TYPE = c;
+        else if (hu === 'STORE NAME' || hu === 'STORE_NAME' || hu === 'NAMA TOKO') COL_STORE = c;
+        else if (hu === 'SKU TARGET' || hu === 'SKU_TARGET')     COL_TGT = c;
+        else if (hu === 'ACT' || hu === 'ACTUAL')                COL_ACT = c;
+    }
+
+    if (COL_KODE === -1) COL_KODE = 0;
+    if (COL_NAMA === -1) COL_NAMA = 1;
+    if (COL_TYPE === -1) COL_TYPE = 2;
+    if (COL_STORE === -1) COL_STORE = 4;
+    if (COL_TGT === -1) COL_TGT = 7;
+    if (COL_ACT === -1) COL_ACT = 8;
+
+    for (var r = headerIdx + 1; r < lines.length; r++) {
+        var line = lines[r].trim();
+        if (!line) continue;
+        var cols = splitCSVLine(line);
+        var storeName = (cols[COL_STORE] || '').trim().replace(/"/g, '');
+        if (!storeName) continue;
+
+        var skuTgt = parseInt((cols[COL_TGT] || '0').replace(/"/g, '')) || 0;
+        var act = parseInt((cols[COL_ACT] || '0').replace(/"/g, '')) || 0;
+
+        data.push({
+            kodeSls: (cols[COL_KODE] || '').trim().replace(/"/g, ''),
+            namaSls: (cols[COL_NAMA] || '').trim().replace(/"/g, ''),
+            typeSls: (cols[COL_TYPE] || '').trim().replace(/"/g, ''),
+            gsFlag: (skuTgt > 0 && act >= skuTgt) ? 1 : 0
+        });
+    }
+    return data;
+}
+
+/* ===== GET GREENSTORE SUMMARY BY SALESMAN ===== */
+function getGSSummary(filtered) {
+    /* Group GS data by salesman nama */
+    var gsMap = {};
+    for (var i = 0; i < gsDataForInc.length; i++) {
+        var g = gsDataForInc[i];
+        var key = g.namaSls;
+        if (!gsMap[key]) gsMap[key] = { total: 0, gs: 0 };
+        gsMap[key].total++;
+        if (g.gsFlag === 1) gsMap[key].gs++;
+    }
+
+    var totalToko = 0;
+    var totalGS = 0;
+    for (var i = 0; i < filtered.length; i++) {
+        var nama = filtered[i].nama;
+        if (gsMap[nama]) {
+            totalToko += gsMap[nama].total;
+            totalGS += gsMap[nama].gs;
+        }
+    }
+    return { total: totalToko, gs: totalGS };
+}
 
 function populateSalesFilter() {
     var sel = document.getElementById('selSalesman');
@@ -119,16 +225,13 @@ function populateSalesFilter() {
 }
 
 function getFilteredIncentive() {
-    var elArea = document.getElementById('selArea');
     var elType = document.getElementById('selType');
     var elSales = document.getElementById('selSalesman');
-    var va = elArea ? elArea.value : 'all';
     var vt = elType ? elType.value : 'all';
     var vs = elSales ? elSales.value : 'all';
     var r = [];
     for (var i = 0; i < incentiveData.length; i++) {
         var d = incentiveData[i];
-        if (va !== 'all' && d.area !== va) continue;
         if (vt !== 'all' && getType(d) !== vt) continue;
         if (vs !== 'all' && d.nama !== vs) continue;
         r.push(d);
@@ -157,26 +260,40 @@ function renderIncentive() {
     renderSalesCards(filtered);
 }
 
+/* ===== SUMMARY CARDS =====
+   Coverage | AO 100K | PF1 | PF2 | PF3 | Greenstore
+*/
 function renderSummaryCards(data) {
     var el = document.getElementById('summaryCards');
     if (!el) return;
     if (data.length === 0) { el.innerHTML = '<p style="color:var(--t2);font-size:.72rem">Tidak ada data</p>'; return; }
-    var totActCov = 0, totTgtCov = 0, totActIMS = 0, totTgtIMS = 0;
+
+    var totActCov = 0, totTgtCov = 0;
     var totAo = 0, totPf1 = 0, totPf2 = 0, totPf3 = 0;
     for (var i = 0; i < data.length; i++) {
         var d = data[i];
-        totActCov += d.actCov; totTgtCov += d.tgtCov;
-        totActIMS += d.actIMS; totTgtIMS += d.tgtIMS;
-        totAo += d.ao; totPf1 += d.pf1; totPf2 += d.pf2; totPf3 += d.pf3;
+        totActCov += d.actCov;
+        totTgtCov += d.tgtCov;
+        totAo += d.ao;
+        totPf1 += d.pf1;
+        totPf2 += d.pf2;
+        totPf3 += d.pf3;
     }
+
+    /* Greenstore from GS data */
+    var gsSummary = getGSSummary(data);
+
+    var gsP = gsSummary.total > 0 ? Math.round((gsSummary.gs / gsSummary.total) * 100) : 0;
+
     var cards = [
-        { lbl: 'Coverage', val: totActCov + '/' + totTgtCov, p: pct(totActCov, totTgtCov) },
-        { lbl: 'IMS', val: fmtRp(totActIMS) + '/' + fmtRp(totTgtIMS), p: pct(totActIMS, totTgtIMS) },
-        { lbl: 'AO Inc', val: totAo + '/' + totTgtCov, p: pct(totAo, totTgtCov) },
-        { lbl: PF_NAMES.pf1, val: totPf1 + '/' + totTgtCov, p: pct(totPf1, totTgtCov) },
-        { lbl: PF_NAMES.pf2, val: totPf2 + '/' + totTgtCov, p: pct(totPf2, totTgtCov) },
-        { lbl: PF_NAMES.pf3, val: totPf3 + '/' + totTgtCov, p: pct(totPf3, totTgtCov) }
+        { lbl: 'COVERAGE',   val: totActCov + '/' + totTgtCov,        p: pct(totActCov, totTgtCov) },
+        { lbl: 'AO INC',     val: totAo + '/' + totTgtCov,            p: pct(totAo, totTgtCov) },
+        { lbl: PF_NAMES.pf1, val: totPf1 + '/' + totTgtCov,           p: pct(totPf1, totTgtCov) },
+        { lbl: PF_NAMES.pf2, val: totPf2 + '/' + totTgtCov,           p: pct(totPf2, totTgtCov) },
+        { lbl: PF_NAMES.pf3, val: totPf3 + '/' + totTgtCov,           p: pct(totPf3, totTgtCov) },
+        { lbl: 'GREENSTORE',  val: gsSummary.gs + '/' + gsSummary.total, p: gsP }
     ];
+
     var h = '';
     for (var c = 0; c < cards.length; c++) {
         var cd = cards[c];
@@ -208,6 +325,16 @@ function renderSalesCards(data) {
     var sisaHK = totHK - actHK;
     if (sisaHK < 0) sisaHK = 0;
 
+    /* Build GS map per salesman */
+    var gsMap = {};
+    for (var g = 0; g < gsDataForInc.length; g++) {
+        var gd = gsDataForInc[g];
+        var gKey = gd.namaSls;
+        if (!gsMap[gKey]) gsMap[gKey] = { total: 0, gs: 0 };
+        gsMap[gKey].total++;
+        if (gd.gsFlag === 1) gsMap[gKey].gs++;
+    }
+
     var h = '';
     for (var i = 0; i < data.length; i++) {
         var d = data[i];
@@ -216,13 +343,17 @@ function renderSalesCards(data) {
         var typeCls = getTypeBadgeClass(type);
         var inc = calcIncentive(d, schemeData);
 
+        /* GS per salesman */
+        var slsGS = gsMap[d.nama] || { total: 0, gs: 0 };
+        var slsGSP = slsGS.total > 0 ? Math.round((slsGS.gs / slsGS.total) * 100) : 0;
+
         h += '<div class="card">';
 
         /* ===== CARD HEAD ===== */
         h += '<div class="card-head">';
         h += '<div>';
         h += '<div class="nm">' + d.nama + ' <span class="type-badge ' + typeCls + '">' + typeLbl + '</span></div>';
-        h += '<div class="sub">' + d.kode + ' | ' + d.area + '</div>';
+        h += '<div class="sub">' + d.kode + '</div>';
         h += '</div>';
         h += '<div style="font-size:.78rem;font-weight:800;color:#fff;background:rgba(255,255,255,.18);padding:6px 14px;border-radius:8px;letter-spacing:.3px">' + fmtRp(inc.hangus ? 0 : inc.totalRaw) + '</div>';
         h += '</div>';
@@ -308,6 +439,32 @@ function renderSalesCards(data) {
         h += '</tbody></table>';
         h += '</div>';
 
+        /* --- GREENSTORE --- */
+        h += '<div class="card-section">';
+        h += '<div class="sec-title">🏪 Greenstore</div>';
+        h += '<div class="dist-grid">';
+        var slsTgtGS = Math.ceil(slsGS.total * 50 / 100);
+        var slsGapGS = slsGS.gs - slsTgtGS;
+        h += '<div class="dist-item">';
+        h += '<div class="d-lbl">Total Toko</div>';
+        h += '<div class="d-val">' + slsGS.total + '</div>';
+        h += '</div>';
+        h += '<div class="dist-item">';
+        h += '<div class="d-lbl">GS Tercapai</div>';
+        h += '<div class="d-val">' + slsGS.gs + '</div>';
+        h += '<div class="d-pct"><span class="pb-b ' + pcC(slsGSP) + '">' + slsGSP + '%</span></div>';
+        h += '</div>';
+        h += '<div class="dist-item">';
+        h += '<div class="d-lbl">Target (50%)</div>';
+        h += '<div class="d-val">' + slsTgtGS + '</div>';
+        h += '</div>';
+        h += '<div class="dist-item">';
+        h += '<div class="d-lbl">Gap</div>';
+        h += '<div class="d-val"><span class="pb-b ' + (slsGapGS >= 0 ? 'ph-h' : 'ph-l') + '">' + (slsGapGS >= 0 ? '+' : '') + slsGapGS + '</span></div>';
+        h += '</div>';
+        h += '</div>';
+        h += '</div>';
+
         /* --- DISTRIBUTION --- */
         h += '<div class="card-section">';
         h += '<div class="sec-title">&#128230; Distribution</div>';
@@ -375,3 +532,4 @@ function renderSalesCards(data) {
     }
     el.innerHTML = h;
 }
+
