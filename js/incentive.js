@@ -188,9 +188,8 @@ function parseGSForIncentive(txt) {
     return data;
 }
 
-/* ===== GET GREENSTORE SUMMARY BY SALESMAN ===== */
+/* ===== GET GREENSTORE TOTALS (filtered by selected salesman/type) ===== */
 function getGSSummary(filtered) {
-    /* Group GS data by salesman nama */
     var gsMap = {};
     for (var i = 0; i < gsDataForInc.length; i++) {
         var g = gsDataForInc[i];
@@ -261,7 +260,7 @@ function renderIncentive() {
 }
 
 /* ===== SUMMARY CARDS =====
-   Coverage | AO 100K | PF1 | PF2 | PF3 | Greenstore
+   Coverage | AO INC | PF1 | PF2 | PF3 | Greenstore
 */
 function renderSummaryCards(data) {
     var el = document.getElementById('summaryCards');
@@ -282,16 +281,15 @@ function renderSummaryCards(data) {
 
     /* Greenstore from GS data */
     var gsSummary = getGSSummary(data);
-
     var gsP = gsSummary.total > 0 ? Math.round((gsSummary.gs / gsSummary.total) * 100) : 0;
 
     var cards = [
-        { lbl: 'COVERAGE',   val: totActCov + '/' + totTgtCov,        p: pct(totActCov, totTgtCov) },
-        { lbl: 'AO INC',     val: totAo + '/' + totTgtCov,            p: pct(totAo, totTgtCov) },
-        { lbl: PF_NAMES.pf1, val: totPf1 + '/' + totTgtCov,           p: pct(totPf1, totTgtCov) },
-        { lbl: PF_NAMES.pf2, val: totPf2 + '/' + totTgtCov,           p: pct(totPf2, totTgtCov) },
-        { lbl: PF_NAMES.pf3, val: totPf3 + '/' + totTgtCov,           p: pct(totPf3, totTgtCov) },
-        { lbl: 'GREENSTORE',  val: gsSummary.gs + '/' + gsSummary.total, p: gsP }
+        { lbl: 'COVERAGE',    val: totActCov + '/' + totTgtCov,           p: pct(totActCov, totTgtCov) },
+        { lbl: 'AO INC',      val: totAo + '/' + totTgtCov,              p: pct(totAo, totTgtCov) },
+        { lbl: PF_NAMES.pf1,  val: totPf1 + '/' + totTgtCov,             p: pct(totPf1, totTgtCov) },
+        { lbl: PF_NAMES.pf2,  val: totPf2 + '/' + totTgtCov,             p: pct(totPf2, totTgtCov) },
+        { lbl: PF_NAMES.pf3,  val: totPf3 + '/' + totTgtCov,             p: pct(totPf3, totTgtCov) },
+        { lbl: 'GREENSTORE',  val: gsSummary.gs + '/' + gsSummary.total,  p: gsP }
     ];
 
     var h = '';
@@ -313,6 +311,7 @@ function kejarBadge(sisaHK, gap) {
     return '<span class="kejar-badge kejar-num">' + k + '</span>';
 }
 
+/* ===== SALES CARDS (tanpa Greenstore section) ===== */
 function renderSalesCards(data) {
     var el = document.getElementById('salesCards');
     if (!el) return;
@@ -325,16 +324,6 @@ function renderSalesCards(data) {
     var sisaHK = totHK - actHK;
     if (sisaHK < 0) sisaHK = 0;
 
-    /* Build GS map per salesman */
-    var gsMap = {};
-    for (var g = 0; g < gsDataForInc.length; g++) {
-        var gd = gsDataForInc[g];
-        var gKey = gd.namaSls;
-        if (!gsMap[gKey]) gsMap[gKey] = { total: 0, gs: 0 };
-        gsMap[gKey].total++;
-        if (gd.gsFlag === 1) gsMap[gKey].gs++;
-    }
-
     var h = '';
     for (var i = 0; i < data.length; i++) {
         var d = data[i];
@@ -342,10 +331,6 @@ function renderSalesCards(data) {
         var typeLbl = getTypeLabel(type);
         var typeCls = getTypeBadgeClass(type);
         var inc = calcIncentive(d, schemeData);
-
-        /* GS per salesman */
-        var slsGS = gsMap[d.nama] || { total: 0, gs: 0 };
-        var slsGSP = slsGS.total > 0 ? Math.round((slsGS.gs / slsGS.total) * 100) : 0;
 
         h += '<div class="card">';
 
@@ -439,32 +424,6 @@ function renderSalesCards(data) {
         h += '</tbody></table>';
         h += '</div>';
 
-        /* --- GREENSTORE --- */
-        h += '<div class="card-section">';
-        h += '<div class="sec-title">🏪 Greenstore</div>';
-        h += '<div class="dist-grid">';
-        var slsTgtGS = Math.ceil(slsGS.total * 50 / 100);
-        var slsGapGS = slsGS.gs - slsTgtGS;
-        h += '<div class="dist-item">';
-        h += '<div class="d-lbl">Total Toko</div>';
-        h += '<div class="d-val">' + slsGS.total + '</div>';
-        h += '</div>';
-        h += '<div class="dist-item">';
-        h += '<div class="d-lbl">GS Tercapai</div>';
-        h += '<div class="d-val">' + slsGS.gs + '</div>';
-        h += '<div class="d-pct"><span class="pb-b ' + pcC(slsGSP) + '">' + slsGSP + '%</span></div>';
-        h += '</div>';
-        h += '<div class="dist-item">';
-        h += '<div class="d-lbl">Target (50%)</div>';
-        h += '<div class="d-val">' + slsTgtGS + '</div>';
-        h += '</div>';
-        h += '<div class="dist-item">';
-        h += '<div class="d-lbl">Gap</div>';
-        h += '<div class="d-val"><span class="pb-b ' + (slsGapGS >= 0 ? 'ph-h' : 'ph-l') + '">' + (slsGapGS >= 0 ? '+' : '') + slsGapGS + '</span></div>';
-        h += '</div>';
-        h += '</div>';
-        h += '</div>';
-
         /* --- DISTRIBUTION --- */
         h += '<div class="card-section">';
         h += '<div class="sec-title">&#128230; Distribution</div>';
@@ -532,4 +491,3 @@ function renderSalesCards(data) {
     }
     el.innerHTML = h;
 }
-
