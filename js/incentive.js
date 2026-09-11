@@ -260,7 +260,7 @@ function renderIncentive() {
 }
 
 /* ===== SUMMARY CARDS =====
-   Coverage | AO INC | PF1 | PF2 | PF3 | Greenstore
+   Coverage | AO INC | PF1 | PF2 | PF3 | Greenstore | IMS
 */
 function renderSummaryCards(data) {
     var el = document.getElementById('summaryCards');
@@ -269,6 +269,7 @@ function renderSummaryCards(data) {
 
     var totActCov = 0, totTgtCov = 0;
     var totAo = 0, totPf1 = 0, totPf2 = 0, totPf3 = 0;
+    var totActIMS = 0, totTgtIMS = 0;
     for (var i = 0; i < data.length; i++) {
         var d = data[i];
         totActCov += d.actCov;
@@ -277,6 +278,8 @@ function renderSummaryCards(data) {
         totPf1 += d.pf1;
         totPf2 += d.pf2;
         totPf3 += d.pf3;
+        totActIMS += d.actIMS;
+        totTgtIMS += d.tgtIMS;
     }
 
     /* Greenstore from GS data */
@@ -284,12 +287,13 @@ function renderSummaryCards(data) {
     var gsP = gsSummary.total > 0 ? Math.round((gsSummary.gs / gsSummary.total) * 100) : 0;
 
     var cards = [
-        { lbl: 'COVERAGE',    val: totActCov + '/' + totTgtCov,           p: pct(totActCov, totTgtCov) },
-        { lbl: 'AO INC',      val: totAo + '/' + totTgtCov,              p: pct(totAo, totTgtCov) },
-        { lbl: PF_NAMES.pf1,  val: totPf1 + '/' + totTgtCov,             p: pct(totPf1, totTgtCov) },
-        { lbl: PF_NAMES.pf2,  val: totPf2 + '/' + totTgtCov,             p: pct(totPf2, totTgtCov) },
-        { lbl: PF_NAMES.pf3,  val: totPf3 + '/' + totTgtCov,             p: pct(totPf3, totTgtCov) },
-        { lbl: 'GREENSTORE',  val: gsSummary.gs + '/' + gsSummary.total,  p: gsP }
+        { lbl: 'COVERAGE',    val: totActCov + '/' + totTgtCov,            p: pct(totActCov, totTgtCov) },
+        { lbl: 'AO INC',      val: totAo + '/' + totTgtCov,               p: pct(totAo, totTgtCov) },
+        { lbl: PF_NAMES.pf1,  val: totPf1 + '/' + totTgtCov,              p: pct(totPf1, totTgtCov) },
+        { lbl: PF_NAMES.pf2,  val: totPf2 + '/' + totTgtCov,              p: pct(totPf2, totTgtCov) },
+        { lbl: PF_NAMES.pf3,  val: totPf3 + '/' + totTgtCov,              p: pct(totPf3, totTgtCov) },
+        { lbl: 'GREENSTORE',  val: gsSummary.gs + '/' + gsSummary.total,   p: gsP },
+        { lbl: 'IMS',         val: fmtJt(totActIMS) + '/' + fmtJt(totTgtIMS), p: pct(totActIMS, totTgtIMS) }
     ];
 
     var h = '';
@@ -491,3 +495,4 @@ function renderSalesCards(data) {
     }
     el.innerHTML = h;
 }
+
