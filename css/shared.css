@@ -1102,3 +1102,31 @@ body {
     font-size: .6rem;
 }
 
+
+
+/* ============================================
+   CTRL INFO ROW (HK Sisa & Progress)
+   Append di akhir shared.css
+   ============================================ */
+
+.ctrl-info-row {
+    display: flex;
+    gap: 24px;
+    padding: 10px 16px 0;
+    font-size: .75rem;
+    color: var(--t2);
+    flex-wrap: wrap;
+}
+
+.ctrl-info-row strong {
+    color: var(--t1);
+    font-weight: 700;
+}
+
+@media (max-width: 500px) {
+    .ctrl-info-row {
+        gap: 12px;
+        font-size: .7rem;
+    }
+}
+

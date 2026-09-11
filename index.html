@@ -1,120 +1,130 @@
+
 <!DOCTYPE html>
-<html lang="id" data-theme="light">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KPI Incentive - Mondelez</title>
-    <link rel="icon" type="image/png" href="img/favicon.png">
+    <title>KPI Incentive 2026 - Mondelez</title>
+    <link rel="icon" href="img/favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/shared.css">
-</head>
-
 </head>
 <body>
 
-    <header class="nav">
+    <!-- NAVBAR -->
+    <nav class="nav">
         <div class="nav-brand">
-            <div class="nav-logo">M</div>
+            <div class="nav-logo"><img src="img/favicon.png" alt="M"></div>
             <div>
-                <div class="nav-title">KPI Incentive Dashboard</div>
-                <div class="nav-sub">Mondelez International - 2026</div>
+                <div class="nav-title">Mondelez International</div>
+                <div class="nav-sub">KPI Incentive 2026</div>
             </div>
         </div>
+
         <div class="nav-right">
-            <a href="#" class="nav-link active">&#128176; Incentive</a>
-            <a href="#" class="nav-link">&#128202; Fundamental</a>
-            <a href="gs.html" class="nav-link active">GS Tracking</a>
-            <span class="theme-btn" onclick="togTheme()">
-                <span id="themeIcon">&#127769;</span>
-                <span id="themeLabel">Dark</span>
-            </span>
-            <span id="btnLoading" class="badge st-load">
+            <a href="index.html" class="nav-link active">💰 Incentive</a>
+            <a href="gs.html" class="nav-link">📊 GS</a>
+            <a href="leaderboard.html" class="nav-link">🏆 Leaderboard</a>
+            <div class="badge st-load" id="btnLoading">
                 <span class="dot"></span>
-                Loading...
-            </span>            
+                <span>Loading...</span>
+            </div>
+            <button class="theme-btn" id="themeBtn" onclick="togTheme()">🌙 Mode</button>
         </div>
-    </header>
+    </nav>
 
     <div class="wrap">
 
-        <!-- HARI KERJA -->
+        <!-- FILTER BAR -->
         <div class="ctrl-bar">
-            <h3>&#128197; Hari Kerja</h3>
-            <div class="ctrl-grp">
-                <label>Actual HK:</label>
-                <input type="number" id="inpHK" value="0" min="0">
+            <div class="ctrl-bar-title">
+                <h3>💰 KPI Incentive</h3>
+                <small id="lastUpdate" style="color:var(--t2)"></small>
             </div>
-            <div class="ctrl-grp">
-                <label>Total HK:</label>
-                <input type="number" id="inpTotHK" value="0" min="0">
-            </div>
-            <div class="ctrl-grp">
-                <label>Sisa HK:</label>
-                <span id="sisaHK" style="font-size:.78rem;font-weight:600">0 hari</span>
-            </div>
-            <div class="ctrl-grp">
-                <span>&#128336;</span>
-                <span id="hkPct" style="font-size:.78rem;font-weight:600">0%</span>
-            </div>
-        </div>
 
-        <!-- FILTER -->
-        <div class="ctrl-bar">
-            <h3>&#128269; Filter</h3>
-            <div class="ctrl-grp">
-                <label>Bulan:</label>
-                <select id="selMonth">
-                    <option value="M01">Januari</option>
-                    <option value="M02">Februari</option>
-                    <option value="M03">Maret</option>
-                    <option value="M04">April</option>
-                    <option value="M05">Mei</option>
-                    <option value="M06">Juni</option>
-                    <option value="M07">Juli</option>
-                    <option value="M08">Agustus</option>
-                    <option value="M09">September</option>
-                    <option value="M10">Oktober</option>
-                    <option value="M11">November</option>
-                    <option value="M12">Desember</option>
-                </select>
+            <div class="ctrl-grid">
+                <div class="ctrl-grp">
+                    <label>Bulan</label>
+                    <select id="selMonth">
+                        <option value="M01">Januari</option>
+                        <option value="M02">Februari</option>
+                        <option value="M03">Maret</option>
+                        <option value="M04">April</option>
+                        <option value="M05">Mei</option>
+                        <option value="M06">Juni</option>
+                        <option value="M07">Juli</option>
+                        <option value="M08">Agustus</option>
+                        <option value="M09">September</option>
+                        <option value="M10">Oktober</option>
+                        <option value="M11">November</option>
+                        <option value="M12">Desember</option>
+                    </select>
+                </div>
+
+                <div class="ctrl-grp">
+                    <label>Area</label>
+                    <select id="selArea">
+                        <option value="all">Semua Area</option>
+                    </select>
+                </div>
+
+                <div class="ctrl-grp">
+                    <label>Type</label>
+                    <select id="selType">
+                        <option value="all">Semua Type</option>
+                        <option value="WHS">WHS</option>
+                        <option value="MT">MT</option>
+                        <option value="RETAIL">Retail</option>
+                        <option value="TO-RIST">TO-RIST</option>
+                    </select>
+                </div>
+
+                <div class="ctrl-grp">
+                    <label>Salesman</label>
+                    <select id="selSalesman">
+                        <option value="all">Semua Salesman</option>
+                    </select>
+                </div>
+
+                <div class="ctrl-grp">
+                    <label>Hari Kerja (HK)</label>
+                    <input type="number" id="inpHK" placeholder="Actual HK" min="0" value="0">
+                </div>
+
+                <div class="ctrl-grp">
+                    <label>Total HK</label>
+                    <input type="number" id="inpTotHK" placeholder="Total HK" min="0" value="0">
+                </div>
             </div>
-            <div class="ctrl-grp">
-                <label>Area:</label>
-                <select id="selArea">
-                    <option value="all">Semua Area</option>
-                </select>
-            </div>
-            <div class="ctrl-grp">
-                <label>Tipe:</label>
-                <select id="selType">
-                    <option value="all">Semua Tipe</option>
-                    <option value="whs">WHS</option>
-                    <option value="mt">MT</option> 
-                    <option value="retail">Retail</option>
-                    <option value="torist">TO-RIST</option>
-                </select>
-            </div>
-            <div class="ctrl-grp">
-                <label>Salesman:</label>
-                <select id="selSalesman">
-                    <option value="all">Semua Salesman</option>
-                </select>
+
+            <!-- HK Info Row -->
+            <div class="ctrl-info-row">
+                <span>📅 Sisa HK: <strong id="sisaHK">0 hari</strong></span>
+                <span>📊 Progress: <strong id="hkPct">0%</strong></span>
             </div>
         </div>
 
         <!-- SUMMARY CARDS -->
-        <div id="summaryCards" class="sum-grid"></div>
+        <div class="section">
+            <div class="sec-header">
+                <h2>📊 Summary</h2>
+            </div>
+            <div class="sec-body sum-grid" id="summaryCards"></div>
+        </div>
 
         <!-- SALES CARDS -->
-        <div id="salesCards" class="grid"></div>
+        <div class="section">
+            <div class="sec-header">
+                <h2>👤 Detail Per Salesman</h2>
+            </div>
+            <div class="sec-body grid" id="salesCards"></div>
+        </div>
 
+        <div class="ft">
+            <span>Mondelez International</span> © 2026 | KPI Incentive Monitoring
+        </div>
     </div>
 
-    <div class="ft">
-        <span>Mondelez International</span> &copy; 2026 | KPI Incentive Monitoring
-    </div>
-
-
-    <!-- ===== SCRIPTS ===== -->
     <script src="js/auth.js"></script>
     <script src="js/anti-devtools.js"></script>
     <script src="js/config.js"></script>
