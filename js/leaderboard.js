@@ -36,8 +36,7 @@ function loadAllMonths() {
         for (var k in ALL_DATA) { if (ALL_DATA[k]) loaded++; }
         if (sb) sb.className = 'badge st-conn';
         if (st) st.textContent = 'Live - ' + loaded + ' bulan';
-        populateAreaFilterLB();
-        setDefaultZeroMonth();
+        setDefaultMonths();
         renderAll();
         renderZeroIncentive();
     }).catch(function(e) {
@@ -46,53 +45,33 @@ function loadAllMonths() {
     });
 }
 
-/* ===== SET DEFAULT ZERO MONTH ===== */
-function setDefaultZeroMonth() {
+/* ===== SET DEFAULT MONTHS TO CURRENT ===== */
+function setDefaultMonths() {
     var now = new Date();
     var m = now.getMonth() + 1;
     var key = 'M' + (m < 10 ? '0' + m : m);
-    var sel = document.getElementById('zeroMonth');
-    if (!sel) return;
-    for (var i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].value === key) {
-            sel.value = key;
-            break;
+
+    var zf = document.getElementById('zeroFrom');
+    var zt = document.getElementById('zeroTo');
+    if (zf) {
+        for (var i = 0; i < zf.options.length; i++) {
+            if (zf.options[i].value === key) { zf.value = key; break; }
+        }
+    }
+    if (zt) {
+        for (var i = 0; i < zt.options.length; i++) {
+            if (zt.options[i].value === key) { zt.value = key; break; }
         }
     }
 }
 
-/* ===== POPULATE AREA FILTER ===== */
-function populateAreaFilterLB() {
-    var areas = {};
-    for (var m in ALL_DATA) {
-        var data = ALL_DATA[m];
-        if (!data) continue;
-        for (var i = 0; i < data.length; i++) {
-            if (data[i].area) areas[data[i].area] = true;
-        }
-    }
-    var sel = document.getElementById('filterArea');
-    if (!sel) return;
-    sel.innerHTML = '<option value="all">Semua Area</option>';
-    var al = Object.keys(areas).sort();
-    for (var a = 0; a < al.length; a++) {
-        var o = document.createElement('option');
-        o.value = al[a];
-        o.textContent = al[a];
-        sel.appendChild(o);
-    }
-}
-
-/* ===== GET FILTERED (for leaderboard) ===== */
-function getFilteredLB(data) {
-    var elArea = document.getElementById('filterArea');
-    var elType = document.getElementById('filterType');
-    var va = elArea ? elArea.value : 'all';
+/* ===== GET FILTERED BY TYPE ===== */
+function getFilteredByType(data, typeFilterId) {
+    var elType = document.getElementById(typeFilterId);
     var vt = elType ? elType.value : 'all';
     var r = [];
     for (var i = 0; i < data.length; i++) {
         var d = data[i];
-        if (va !== 'all' && d.area !== va) continue;
         if (vt !== 'all' && getType(d) !== vt) continue;
         r.push(d);
     }
@@ -105,7 +84,7 @@ function getSortBy() {
     return el ? el.value : 'ims';
 }
 
-/* ===== RENDER ALL ===== */
+/* ===== RENDER ALL (ranking + trend) ===== */
 function renderAll() {
     renderAllRank();
     renderTrendChart();
@@ -144,7 +123,7 @@ function renderAllRank() {
         var slabs = SLABS_ALL[MONTHS[m]];
 
         if (data && slabs) {
-            var fd = getFilteredLB(data);
+            var fd = getFilteredByType(data, 'filterType');
             for (var i = 0; i < fd.length; i++) {
                 var d = fd[i];
                 var inc = calcIncentive(d, slabs);
@@ -161,14 +140,12 @@ function renderAllRank() {
                         gcSum: 0,
                         pfSum: 0,
                         incSum: 0,
-                        count: 0,
-                        lastMonth: m
+                        count: 0
                     };
                 }
 
                 accum[key].nama = d.nama;
                 accum[key].type = getType(d);
-                accum[key].lastMonth = m;
 
                 accum[key].imsSum += (d.actIMS || 0);
                 accum[key].covSum += (inc.covP || 0);
@@ -219,14 +196,8 @@ function renderAllRank() {
         var r = arr[i];
         var rc = (i < 3) ? 'top' + (i + 1) : '';
         var rb = (i === 0) ? 'rank-1' : (i === 1) ? 'rank-2' : (i === 2) ? 'rank-3' : 'rank-n';
-        var typeStr = r.type || '';
-        var typeLbl = typeStr;
-        var typeCls = '';
-        var tu = String(typeStr).toUpperCase();
-        if (tu.indexOf('WHS') !== -1) { typeLbl = 'WHS'; typeCls = 'type-whs'; }
-        else if (tu === 'MT' || tu.indexOf('MT') !== -1) { typeLbl = 'MT'; typeCls = 'type-mt'; }
-        else if (tu.indexOf('RETAIL') !== -1) { typeLbl = 'Retail'; typeCls = 'type-retail'; }
-        else if (tu.indexOf('RIST') !== -1) { typeLbl = 'TO-RIST'; typeCls = 'type-torist'; }
+        var typeLbl = getTypeLabel(r.type);
+        var typeCls = getTypeBadgeClass(r.type);
 
         h += '<tr class="' + rc + '">';
         h += '<td><span class="rank-badge ' + rb + '">' + (i + 1) + '</span></td>';
@@ -249,150 +220,258 @@ function renderAllRank() {
     if (elRank) elRank.innerHTML = h;
 }
 
-/* ===== RENDER ZERO INCENTIVE SECTION ===== */
+/* ================================================================
+   RENDER CEK INCENTIVE - Support range bulan
+   - Single month: detail breakdown per KPI
+   - Multi month: kolom per bulan + summary
+   ================================================================ */
 function renderZeroIncentive() {
-    var selMonth = document.getElementById('zeroMonth');
-    var selFilter = document.getElementById('zeroFilter');
-    var month = selMonth ? selMonth.value : 'M09';
-    var filter = selFilter ? selFilter.value : 'all';
+    var elFrom = document.getElementById('zeroFrom');
+    var elTo = document.getElementById('zeroTo');
+    var elFilter = document.getElementById('zeroFilter');
 
-    var data = ALL_DATA[month];
-    var slabs = SLABS_ALL[month];
+    var fromM = elFrom ? elFrom.value : 'M09';
+    var toM = elTo ? elTo.value : 'M09';
+    var filter = elFilter ? elFilter.value : 'all';
+
+    var fromIdx = MONTHS.indexOf(fromM);
+    var toIdx = MONTHS.indexOf(toM);
+    if (fromIdx > toIdx) { var tmp = fromIdx; fromIdx = toIdx; toIdx = tmp; }
+
+    var monthCount = toIdx - fromIdx + 1;
+    var isSingle = (monthCount === 1);
+
+    var elLabel = document.getElementById('zeroLabel');
+    if (elLabel) {
+        if (isSingle) {
+            elLabel.textContent = MONTH_NAMES[fromIdx] + ' 2026';
+        } else {
+            elLabel.textContent = MONTH_NAMES[fromIdx] + ' - ' + MONTH_NAMES[toIdx] + ' 2026 (' + monthCount + ' bulan)';
+        }
+    }
 
     var elSummary = document.getElementById('zeroSummary');
     var elTable = document.getElementById('zeroTable');
 
-    if (!data || !slabs) {
+    /* --- Accumulate per salesman across months --- */
+    var accum = {};
+    var hasData = false;
+
+    for (var m = fromIdx; m <= toIdx; m++) {
+        var data = ALL_DATA[MONTHS[m]];
+        var slabs = SLABS_ALL[MONTHS[m]];
+        if (!data || !slabs) continue;
+        hasData = true;
+
+        var fd = getFilteredByType(data, 'zeroType');
+        for (var i = 0; i < fd.length; i++) {
+            var d = fd[i];
+            var inc = calcIncentive(d, slabs);
+            var finalInc = inc.hangus ? 0 : inc.totalRaw;
+            var isZero = (finalInc === 0);
+
+            var key = d.kode || d.nama;
+
+            if (!accum[key]) {
+                accum[key] = {
+                    kode: d.kode || '',
+                    nama: d.nama,
+                    type: getType(d),
+                    totalInc: 0,
+                    gotMonths: 0,
+                    zeroMonths: 0,
+                    hangusMonths: 0,
+                    monthCount: 0,
+                    months: []
+                };
+            }
+
+            accum[key].nama = d.nama;
+            accum[key].type = getType(d);
+            accum[key].monthCount++;
+
+            var monthDetail = {
+                month: MONTH_NAMES[m],
+                monthIdx: m,
+                covP: inc.covP,
+                imsP: inc.imsP,
+                aqPct: inc.aqPct,
+                aqMul: inc.aqMul,
+                incIMS: inc.incIMS,
+                incAO: inc.incAO,
+                incPF1: inc.incPF1,
+                incPF2: inc.incPF2,
+                incGC: inc.incGC,
+                totalRaw: inc.totalRaw,
+                finalInc: finalInc,
+                hangus: inc.hangus,
+                isZero: isZero
+            };
+            accum[key].months.push(monthDetail);
+
+            accum[key].totalInc += finalInc;
+            if (inc.hangus) {
+                accum[key].hangusMonths++;
+                accum[key].zeroMonths++;
+            } else if (isZero) {
+                accum[key].zeroMonths++;
+            } else {
+                accum[key].gotMonths++;
+            }
+        }
+    }
+
+    if (!hasData) {
         if (elSummary) elSummary.innerHTML = '';
-        if (elTable) elTable.innerHTML = '<p style="color:var(--t2);font-size:.72rem;text-align:center;padding:20px">Tidak ada data untuk bulan ini</p>';
+        if (elTable) elTable.innerHTML = '<p style="color:var(--t2);font-size:.72rem;text-align:center;padding:20px">Tidak ada data untuk periode ini</p>';
         return;
     }
 
-    var elLabel = document.getElementById('zeroLabel');
-    var mIdx = MONTHS.indexOf(month);
-    if (elLabel) elLabel.textContent = MONTH_NAMES[mIdx] + ' 2026';
-
-    var fd = getFilteredLB(data);
+    /* --- Convert to array --- */
     var rows = [];
-    var totalGot = 0;
-    var totalZero = 0;
-    var totalHangus = 0;
+    var totalSls = 0;
+    var totalGotAll = 0;
+    var totalHasZero = 0;
+    var totalHangusAll = 0;
 
-    for (var i = 0; i < fd.length; i++) {
-        var d = fd[i];
-        var inc = calcIncentive(d, slabs);
-        var finalInc = inc.hangus ? 0 : inc.totalRaw;
-        var isZero = (finalInc === 0);
+    for (var k in accum) {
+        var a = accum[k];
+        totalSls++;
+        if (a.zeroMonths === 0) totalGotAll++;
+        if (a.zeroMonths > 0) totalHasZero++;
+        totalHangusAll += a.hangusMonths;
 
-        /* Determine reason for zero */
-        var reason = '';
-        if (inc.hangus) {
-            reason = 'Coverage ' + inc.covP + '% < 100% (HANGUS)';
-            totalHangus++;
-        } else if (inc.totalRaw === 0) {
-            reason = 'Semua KPI dibawah minimum slab';
-        }
-
-        if (isZero) totalZero++;
-        else totalGot++;
+        var hasHangus = (a.hangusMonths > 0);
 
         /* Apply filter */
-        if (filter === 'zero' && !isZero) continue;
-        if (filter === 'got' && isZero) continue;
+        if (filter === 'zero' && a.zeroMonths === 0) continue;
+        if (filter === 'got' && a.gotMonths === 0) continue;
+        if (filter === 'hangus' && !hasHangus) continue;
 
-        rows.push({
-            kode: d.kode || '',
-            nama: d.nama,
-            type: getType(d),
-            covP: inc.covP,
-            imsP: inc.imsP,
-            aqPct: inc.aqPct,
-            aqMul: inc.aqMul,
-            incIMS: inc.incIMS,
-            incAO: inc.incAO,
-            incPF1: inc.incPF1,
-            incPF2: inc.incPF2,
-            incGC: inc.incGC,
-            totalRaw: inc.totalRaw,
-            finalInc: finalInc,
-            hangus: inc.hangus,
-            reason: reason,
-            isZero: isZero
-        });
+        a.hasHangus = hasHangus;
+        rows.push(a);
     }
 
     /* --- Summary badges --- */
-    var totalAll = totalGot + totalZero;
     var sumH = '<div class="sum-grid" style="margin-bottom:14px">';
-    sumH += '<div class="sum-card"><div class="lbl">TOTAL SALESMAN</div><div class="val" style="font-size:1.3rem;font-weight:700">' + totalAll + '</div></div>';
-    sumH += '<div class="sum-card" style="border-left:3px solid var(--hi-c)"><div class="lbl">&#128994; DAPAT INCENTIVE</div><div class="val" style="font-size:1.3rem;font-weight:700;color:var(--hi-c)">' + totalGot + '</div></div>';
-    sumH += '<div class="sum-card" style="border-left:3px solid var(--lo-c)"><div class="lbl">&#128308; ZERO INCENTIVE</div><div class="val" style="font-size:1.3rem;font-weight:700;color:var(--lo-c)">' + totalZero + '</div></div>';
-    sumH += '<div class="sum-card" style="border-left:3px solid var(--mid-c)"><div class="lbl">&#128683; HANGUS (Cov &lt;100%)</div><div class="val" style="font-size:1.3rem;font-weight:700;color:var(--mid-c)">' + totalHangus + '</div></div>';
+    sumH += '<div class="sum-card"><div class="lbl">TOTAL SALESMAN</div><div class="val" style="font-size:1.3rem;font-weight:700">' + totalSls + '</div></div>';
+    sumH += '<div class="sum-card" style="border-left:3px solid var(--hi-c)"><div class="lbl">&#128994; SELALU DAPAT</div><div class="val" style="font-size:1.3rem;font-weight:700;color:var(--hi-c)">' + totalGotAll + '</div></div>';
+    sumH += '<div class="sum-card" style="border-left:3px solid var(--lo-c)"><div class="lbl">&#128308; PERNAH ZERO</div><div class="val" style="font-size:1.3rem;font-weight:700;color:var(--lo-c)">' + totalHasZero + '</div></div>';
+    sumH += '<div class="sum-card" style="border-left:3px solid var(--mid-c)"><div class="lbl">&#128683; TOTAL HANGUS</div><div class="val" style="font-size:1.3rem;font-weight:700;color:var(--mid-c)">' + totalHangusAll + 'x</div></div>';
     sumH += '</div>';
     if (elSummary) elSummary.innerHTML = sumH;
 
-    /* --- Table --- */
-    var h = '<table class="lb-table"><thead><tr>';
-    h += '<th>#</th><th>SALESMAN</th><th>TIPE</th>';
-    h += '<th>COV %</th><th>IMS %</th><th>AQ</th>';
-    h += '<th>IMS</th><th>AO</th><th>' + PF_NAMES.pf1 + '</th><th>' + PF_NAMES.pf2 + '</th><th>GC</th>';
-    h += '<th>TOTAL</th><th>STATUS</th>';
-    h += '</tr></thead><tbody>';
-
-    /* Sort: zero first, then by totalRaw desc */
+    /* --- Sort: most zero months first, then by total incentive asc --- */
     rows.sort(function(a, b) {
-        if (a.isZero !== b.isZero) return a.isZero ? -1 : 1;
-        return b.finalInc - a.finalInc;
+        if (b.zeroMonths !== a.zeroMonths) return b.zeroMonths - a.zeroMonths;
+        return a.totalInc - b.totalInc;
     });
 
-    for (var i = 0; i < rows.length; i++) {
-        var r = rows[i];
-        var typeStr = r.type || '';
-        var typeLbl = typeStr;
-        var typeCls = '';
-        var tu = String(typeStr).toUpperCase();
-        if (tu.indexOf('WHS') !== -1) { typeLbl = 'WHS'; typeCls = 'type-whs'; }
-        else if (tu.indexOf('RETAIL') !== -1) { typeLbl = 'Retail'; typeCls = 'type-retail'; }
-        else if (tu.indexOf('RIST') !== -1) { typeLbl = 'TO-RIST'; typeCls = 'type-torist'; }
+    /* --- Build table --- */
+    var h = '';
 
-        var rowCls = r.isZero ? ' style="opacity:.85"' : '';
+    if (isSingle) {
+        /* ===== SINGLE MONTH VIEW - detail breakdown ===== */
+        h += '<table class="lb-table"><thead><tr>';
+        h += '<th>#</th><th>SALESMAN</th><th>TIPE</th>';
+        h += '<th>COV %</th><th>IMS %</th><th>AQ</th>';
+        h += '<th>IMS</th><th>AO</th><th>' + PF_NAMES.pf1 + '</th><th>' + PF_NAMES.pf2 + '</th><th>GC</th>';
+        h += '<th>TOTAL</th><th>STATUS</th>';
+        h += '</tr></thead><tbody>';
 
-        h += '<tr' + rowCls + '>';
-        h += '<td>' + (i + 1) + '</td>';
-        h += '<td><span class="sls-kode">' + r.kode + '</span> <strong>' + r.nama + '</strong></td>';
-        h += '<td><span class="type-badge ' + typeCls + '">' + typeLbl + '</span></td>';
-        h += '<td><span class="pb-b ' + pcC(r.covP) + '">' + r.covP + '%</span></td>';
-        h += '<td><span class="pb-b ' + pcC(r.imsP) + '">' + r.imsP + '%</span></td>';
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i];
+            var md = r.months[0];
+            var typeLbl = getTypeLabel(r.type);
+            var typeCls = getTypeBadgeClass(r.type);
 
-        /* AQ badge */
-        var aqCls = r.aqMul >= 100 ? 'ph-h' : (r.aqMul >= 80 ? 'ph-m' : 'ph-l');
-        h += '<td><span class="pb-b ' + aqCls + '">' + r.aqPct + '%</span></td>';
+            var rowCls = md.isZero ? ' style="opacity:.85"' : '';
+            h += '<tr' + rowCls + '>';
+            h += '<td>' + (i + 1) + '</td>';
+            h += '<td><span class="sls-kode">' + r.kode + '</span> <strong>' + r.nama + '</strong></td>';
+            h += '<td><span class="type-badge ' + typeCls + '">' + typeLbl + '</span></td>';
+            h += '<td><span class="pb-b ' + pcC(md.covP) + '">' + md.covP + '%</span></td>';
+            h += '<td><span class="pb-b ' + pcC(md.imsP) + '">' + md.imsP + '%</span></td>';
 
-        h += '<td>' + fmtRp(r.incIMS) + '</td>';
-        h += '<td>' + fmtRp(r.incAO) + '</td>';
-        h += '<td>' + fmtRp(r.incPF1) + '</td>';
-        h += '<td>' + fmtRp(r.incPF2) + '</td>';
-        h += '<td>' + fmtRp(r.incGC) + '</td>';
+            var aqCls = md.aqMul >= 100 ? 'ph-h' : (md.aqMul >= 80 ? 'ph-m' : 'ph-l');
+            h += '<td><span class="pb-b ' + aqCls + '">' + md.aqPct + '%</span></td>';
 
-        /* Total with hangus styling */
-        if (r.hangus) {
-            h += '<td style="text-decoration:line-through;color:var(--lo-c)">' + fmtRp(r.totalRaw) + '</td>';
-        } else {
-            h += '<td style="font-weight:700">' + fmtRp(r.finalInc) + '</td>';
+            h += '<td>' + fmtRp(md.incIMS) + '</td>';
+            h += '<td>' + fmtRp(md.incAO) + '</td>';
+            h += '<td>' + fmtRp(md.incPF1) + '</td>';
+            h += '<td>' + fmtRp(md.incPF2) + '</td>';
+            h += '<td>' + fmtRp(md.incGC) + '</td>';
+
+            if (md.hangus) {
+                h += '<td style="text-decoration:line-through;color:var(--lo-c)">' + fmtRp(md.totalRaw) + '</td>';
+            } else {
+                h += '<td style="font-weight:700">' + fmtRp(md.finalInc) + '</td>';
+            }
+
+            if (md.hangus) {
+                h += '<td><span class="kejar-badge kejar-no" style="font-size:.55rem">&#128683; HANGUS</span></td>';
+            } else if (md.isZero) {
+                h += '<td><span class="kejar-badge kejar-no" style="font-size:.55rem">&#128308; Rp 0</span></td>';
+            } else {
+                h += '<td><span class="kejar-badge kejar-ok" style="font-size:.55rem">&#128994; ' + fmtRp(md.finalInc) + '</span></td>';
+            }
+            h += '</tr>';
+        }
+        h += '</tbody></table>';
+
+    } else {
+        /* ===== MULTI MONTH (RANGE) VIEW - kolom per bulan ===== */
+        h += '<table class="lb-table"><thead><tr>';
+        h += '<th>#</th><th>SALESMAN</th><th>TIPE</th>';
+
+        /* Dynamic month columns */
+        for (var m = fromIdx; m <= toIdx; m++) {
+            h += '<th>' + MONTH_NAMES[m] + '</th>';
         }
 
-        /* Status badge */
-        if (r.hangus) {
-            h += '<td><span class="kejar-badge kejar-no" style="font-size:.55rem" title="' + r.reason + '">&#128683; HANGUS</span></td>';
-        } else if (r.isZero) {
-            h += '<td><span class="kejar-badge kejar-no" style="font-size:.55rem">&#128308; Rp 0</span></td>';
-        } else {
-            h += '<td><span class="kejar-badge kejar-ok" style="font-size:.55rem">&#128994; ' + fmtRp(r.finalInc) + '</span></td>';
-        }
+        h += '<th>TOTAL INC</th><th>&#128994;</th><th>&#128308;</th><th>&#128683;</th>';
+        h += '</tr></thead><tbody>';
 
-        h += '</tr>';
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i];
+            var typeLbl = getTypeLabel(r.type);
+            var typeCls = getTypeBadgeClass(r.type);
+
+            var rowCls = (r.gotMonths === 0) ? ' style="opacity:.85"' : '';
+            h += '<tr' + rowCls + '>';
+            h += '<td>' + (i + 1) + '</td>';
+            h += '<td><span class="sls-kode">' + r.kode + '</span> <strong>' + r.nama + '</strong></td>';
+            h += '<td><span class="type-badge ' + typeCls + '">' + typeLbl + '</span></td>';
+
+            /* Build lookup: monthIdx -> monthDetail */
+            var monthMap = {};
+            for (var mi = 0; mi < r.months.length; mi++) {
+                monthMap[r.months[mi].monthIdx] = r.months[mi];
+            }
+
+            /* Per-month incentive cells */
+            for (var m = fromIdx; m <= toIdx; m++) {
+                var md = monthMap[m];
+                if (!md) {
+                    h += '<td style="font-size:.6rem;text-align:center;color:var(--t2)">-</td>';
+                } else if (md.hangus) {
+                    h += '<td style="font-size:.6rem;text-align:center"><span class="kejar-badge kejar-no" style="font-size:.5rem">&#128683;</span><br><span style="text-decoration:line-through;color:var(--lo-c)">' + fmtRp(md.totalRaw) + '</span></td>';
+                } else if (md.isZero) {
+                    h += '<td style="font-size:.6rem;text-align:center;color:var(--lo-c)">Rp 0</td>';
+                } else {
+                    h += '<td style="font-size:.6rem;text-align:center;color:var(--hi-c);font-weight:600">' + fmtRp(md.finalInc) + '</td>';
+                }
+            }
+
+            /* Total + counts */
+            h += '<td style="font-weight:700">' + fmtRp(r.totalInc) + '</td>';
+            h += '<td style="text-align:center;color:var(--hi-c);font-weight:600">' + r.gotMonths + '</td>';
+            h += '<td style="text-align:center;color:var(--lo-c);font-weight:600">' + r.zeroMonths + '</td>';
+            h += '<td style="text-align:center;color:var(--mid-c);font-weight:600">' + r.hangusMonths + '</td>';
+            h += '</tr>';
+        }
+        h += '</tbody></table>';
     }
-    h += '</tbody></table>';
 
     if (rows.length === 0) {
         h = '<p style="color:var(--t2);font-size:.72rem;text-align:center;padding:20px">Tidak ada data sesuai filter</p>';
@@ -410,7 +489,7 @@ function renderTrendChart() {
         var data = ALL_DATA[MONTHS[m]];
         var slabs = SLABS_ALL[MONTHS[m]];
         if (!data || !slabs) continue;
-        var fd = getFilteredLB(data);
+        var fd = getFilteredByType(data, 'filterType');
 
         for (var i = 0; i < fd.length; i++) {
             var d = fd[i];
@@ -523,20 +602,26 @@ function renderTrendChart() {
 document.addEventListener('DOMContentLoaded', function() {
     initTheme();
 
+    /* Ranking section filters */
     var selSort = document.getElementById('selSort');
-    var filterArea = document.getElementById('filterArea');
     var filterType = document.getElementById('filterType');
     var fromMonth = document.getElementById('fromMonth');
     var toMonth = document.getElementById('toMonth');
-    var zeroMonth = document.getElementById('zeroMonth');
-    var zeroFilter = document.getElementById('zeroFilter');
 
     if (selSort) selSort.onchange = renderAll;
-    if (filterArea) filterArea.onchange = function() { renderAll(); renderZeroIncentive(); };
-    if (filterType) filterType.onchange = function() { renderAll(); renderZeroIncentive(); };
+    if (filterType) filterType.onchange = renderAll;
     if (fromMonth) fromMonth.onchange = renderAll;
     if (toMonth) toMonth.onchange = renderAll;
-    if (zeroMonth) zeroMonth.onchange = renderZeroIncentive;
+
+    /* Cek Incentive section filters (independent) */
+    var zeroFrom = document.getElementById('zeroFrom');
+    var zeroTo = document.getElementById('zeroTo');
+    var zeroType = document.getElementById('zeroType');
+    var zeroFilter = document.getElementById('zeroFilter');
+
+    if (zeroFrom) zeroFrom.onchange = renderZeroIncentive;
+    if (zeroTo) zeroTo.onchange = renderZeroIncentive;
+    if (zeroType) zeroType.onchange = renderZeroIncentive;
     if (zeroFilter) zeroFilter.onchange = renderZeroIncentive;
 
     loadAllMonths();
