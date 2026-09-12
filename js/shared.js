@@ -1,3 +1,4 @@
+
 /* ===== CONSTANTS ===== */
 var MONTHS = ['M01','M02','M03','M04','M05','M06','M07','M08','M09','M10','M11','M12'];
 var MONTH_NAMES = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
@@ -240,6 +241,12 @@ function parseData(txt) {
     var cTgtPf2Pct = findCol(headers, ['TARGET PF2%', 'TGT PF2%']);
     var cTgtPf3Pct = findCol(headers, ['TARGET PF3%', 'TGT PF3%']);
 
+    /* ATTEND QUALITY - Kolom X (index 23) atau auto-detect by header */
+    var cAttendQ = findCol(headers, ['ATTEND QUALITY', 'QUALITY ATTENDANCE', 'ATTEND Q', 'ATT QUALITY', 'AQ']);
+    if (cAttendQ === -1 && headers.length > 23) {
+        cAttendQ = 23;  /* Fallback: kolom X = index 23 */
+    }
+
     /* AUTO DETECT PF NAMES */
     if (cPf1 >= 0) {
         var rawPf1 = headers[cPf1].replace(/ACTUAL /i, '').trim();
@@ -284,64 +291,23 @@ function parseData(txt) {
             tgtPf1Pct: (cTgtPf1Pct >= 0) ? pN(vals[cTgtPf1Pct]) : 0,
             tgtPf2Pct: (cTgtPf2Pct >= 0) ? pN(vals[cTgtPf2Pct]) : 0,
             tgtPf3Pct: (cTgtPf3Pct >= 0) ? pN(vals[cTgtPf3Pct]) : 0,
-            tgtGCPct: (cTgtGCPct >= 0) ? pN(vals[cTgtGCPct]) : 0
+            tgtGCPct: (cTgtGCPct >= 0) ? pN(vals[cTgtGCPct]) : 0,
+            attendQuality: (cAttendQ >= 0) ? pN(vals[cAttendQ]) : 100
         });
     }
     return data;
 }
 
-/* ===== KPI FUNDAMENTAL DATA PARSER ===== */
-var FUND_PRODUCTS = [];
-function parseFundamental(txt) {
-    var lines = txt.split(LF);
-    var data = [];
-    var hi = -1;
-    for (var h = 0; h < lines.length; h++) {
-        var ln = lines[h].replace(CR, '').trim().toUpperCase();
-        if (ln.indexOf('KODE') !== -1) {
-            hi = h;
-            break;
-        }
-    }
-    if (hi === -1) return data;
-    var headers = splitCSVLine(lines[hi].replace(CR, '').trim());
-    var cNama = findCol(headers, ['NAMA']);
-    var cArea = findCol(headers, ['AREA']);
-    var cType = findCol(headers, ['TYPE']);
-    var cTgtCov = findCol(headers, ['TARGET COVEX', 'TGT COVEX', 'TARGET COV']);
-    var prodCols = [];
-    for (var i = 0; i < headers.length; i++) {
-        var hu = headers[i].toUpperCase();
-        if (hu.indexOf('ACTUAL AO') !== -1 || hu.indexOf('ACTUAL ') !== -1) {
-            var pName = headers[i].replace(/ACTUAL AO /i, '').replace(/ACTUAL /i, '').trim();
-            if (pName && pName.toUpperCase() !== 'COVEX' && pName.toUpperCase() !== 'CALL' && pName.toUpperCase() !== 'EC' && pName.toUpperCase().indexOf('AO') === -1 && pName.toUpperCase().indexOf('IMS') === -1 && pName.toUpperCase().indexOf('GC') === -1) {
-                prodCols.push({ idx: i, name: pName });
-            }
-        }
-    }
-    FUND_PRODUCTS = [];
-    for (var p = 0; p < prodCols.length; p++) {
-        FUND_PRODUCTS.push(prodCols[p].name);
-    }
-    for (var i = hi + 1; i < lines.length; i++) {
-        var line = lines[i].replace(CR, '').trim();
-        if (line === '') continue;
-        var vals = splitCSVLine(line);
-        var nama = (cNama >= 0) ? (vals[cNama] || '').trim() : '';
-        if (nama === '') continue;
-        var row = {
-            nama: nama,
-            area: (cArea >= 0) ? (vals[cArea] || '').trim() : '',
-            slsType: (cType >= 0) ? (vals[cType] || '').trim() : '',
-            tgtCov: (cTgtCov >= 0) ? pN(vals[cTgtCov]) : 0,
-            products: {}
-        };
-        for (var p = 0; p < prodCols.length; p++) {
-            row.products[prodCols[p].name] = pN(vals[prodCols[p].idx]);
-        }
-        data.push(row);
-    }
-    return data;
+/* ===== ATTEND QUALITY MULTIPLIER =====
+   Aturan potongan IMS (berlaku untuk SEMUA type termasuk SO/WHS):
+   < 70%          → 50% Revenue Reward Value
+   >= 70% - <100% → 80% Revenue Reward Value
+   >= 100%        → 100% Revenue Reward Value (full)
+*/
+function getAttendQualityMul(aqPct) {
+    if (aqPct >= 100) return 100;
+    if (aqPct >= 70) return 80;
+    return 50;
 }
 
 /* ===== INCENTIVE CALCULATION ===== */
@@ -456,8 +422,15 @@ function calcIncentive(d, slabs) {
     /* IMS = Actual IMS / Target IMS */
     var imsP = (d.tgtIMS > 0) ? pct(d.actIMS, d.tgtIMS) : 0;
 
-    /* HITUNG INCENTIVE */
-    var incIMS = calcIMS(imsP, schType, slabs);
+    /* HITUNG INCENTIVE IMS (sebelum potongan attend quality) */
+    var incIMSRaw = calcIMS(imsP, schType, slabs);
+
+    /* ATTEND QUALITY MULTIPLIER pada IMS
+       Berlaku untuk SEMUA type (SO/WHS, Retail, TO-RIST) */
+    var aqPct = (d.attendQuality !== undefined && d.attendQuality !== null) ? d.attendQuality : 100;
+    var aqMul = getAttendQualityMul(aqPct);
+    var incIMS = Math.round(incIMSRaw * (aqMul / 100));
+
     var incAO = calcFlat(aoP, schType, 'AO', slabs);
     var incPF1 = calcFlat(pf1P, schType, 'PF1', slabs);
     var incPF2 = calcFlat(pf2P, schType, 'PF2', slabs);
@@ -486,6 +459,9 @@ function calcIncentive(d, slabs) {
         tgtPf3Disp: tgtPf3Disp,
         tgtGCcov: tgtGCcov,
         incIMS: incIMS,
+        incIMSRaw: incIMSRaw,
+        aqPct: aqPct,
+        aqMul: aqMul,
         incAO: incAO,
         incPF1: incPF1,
         incPF2: incPF2,

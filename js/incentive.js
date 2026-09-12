@@ -315,7 +315,7 @@ function kejarBadge(sisaHK, gap) {
     return '<span class="kejar-badge kejar-num">' + k + '</span>';
 }
 
-/* ===== SALES CARDS (tanpa Greenstore section) ===== */
+/* ===== SALES CARDS ===== */
 function renderSalesCards(data) {
     var el = document.getElementById('salesCards');
     if (!el) return;
@@ -379,7 +379,7 @@ function renderSalesCards(data) {
         h += '</tbody></table>';
         h += '</div>';
 
-        /* --- REVENUE (IMS) --- */
+        /* --- REVENUE (IMS) + ATTEND QUALITY --- */
         h += '<div class="card-section rev-section">';
         h += '<div class="sec-title">&#128293; Revenue (IMS)</div>';
         h += '<table class="tbl"><thead><tr>';
@@ -396,6 +396,21 @@ function renderSalesCards(data) {
         h += '<td class="' + (imsGap > 0 ? 'gap-val' : '') + '">' + (imsGap > 0 ? fmtRp(imsGap) : '&#10003;') + '</td>';
         h += '<td>' + imsKejar + '</td>';
         h += '</tr>';
+
+        /* --- ATTEND QUALITY ROW --- */
+        var aqBadgeCls = inc.aqMul >= 100 ? 'ph-h' : (inc.aqMul >= 80 ? 'ph-m' : 'ph-l');
+        h += '<tr>';
+        h += '<td>Attend Quality</td>';
+        h += '<td style="color:var(--t2);font-size:.65rem">Min 100%</td>';
+        h += '<td>' + inc.aqPct + '%</td>';
+        h += '<td><span class="pb-b ' + aqBadgeCls + '">' + inc.aqMul + '% reward</span></td>';
+        if (inc.aqMul < 100) {
+            h += '<td colspan="2" style="font-size:.6rem;color:var(--lo-c)">&#9888; IMS dipotong ' + (100 - inc.aqMul) + '%</td>';
+        } else {
+            h += '<td colspan="2" style="font-size:.6rem;color:var(--hi-c)">&#10003; Full reward</td>';
+        }
+        h += '</tr>';
+
         h += '</tbody></table>';
         h += '</div>';
 
@@ -461,8 +476,14 @@ function renderSalesCards(data) {
         }
         h += '</div>';
         h += '<div class="inc-grid">';
+
+        /* IMS item - tampilkan efek attend quality */
+        var imsLabel = 'IMS';
+        if (inc.aqMul < 100) {
+            imsLabel = 'IMS <small style="opacity:.7">(AQ ' + inc.aqMul + '%)</small>';
+        }
         var incItems = [
-            { lbl: 'IMS', pct2: inc.imsP, val: inc.incIMS },
+            { lbl: imsLabel, pct2: inc.imsP, val: inc.incIMS },
             { lbl: 'AO Inc', pct2: inc.aoP, val: inc.incAO },
             { lbl: PF_NAMES.pf1, pct2: inc.pf1P, val: inc.incPF1 },
             { lbl: PF_NAMES.pf2, pct2: inc.pf2P, val: inc.incPF2 },
@@ -477,6 +498,18 @@ function renderSalesCards(data) {
             h += '</div>';
         }
         h += '</div>';
+
+        /* ATTEND QUALITY INFO BAR (tampil jika < 100%) */
+        if (inc.aqMul < 100) {
+            h += '<div style="background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:6px 12px;margin:8px 0 4px;font-size:.6rem;color:var(--mid-c);display:flex;align-items:center;gap:6px">';
+            h += '<span>&#9888;</span>';
+            h += '<span>Attend Quality ' + inc.aqPct + '% &rarr; IMS reward dipotong menjadi <strong>' + inc.aqMul + '%</strong>';
+            if (inc.incIMSRaw !== inc.incIMS) {
+                h += ' (' + fmtRp(inc.incIMSRaw) + ' &rarr; ' + fmtRp(inc.incIMS) + ')';
+            }
+            h += '</span>';
+            h += '</div>';
+        }
 
         /* TOTAL BAR */
         var totalClass = inc.hangus ? 'inc-total hangus' : 'inc-total';
@@ -495,4 +528,3 @@ function renderSalesCards(data) {
     }
     el.innerHTML = h;
 }
-
