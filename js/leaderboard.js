@@ -1,62 +1,7 @@
+
 /* ===== LEADERBOARD - MAIN LOGIC ===== */
 var ALL_DATA = {};
 var SLABS_ALL = {};
-var FUND_DATA_LB = {};
-var FUND_PRODUCTS = [];
-
-/* ===== PARSE FUNDAMENTAL CSV FOR LEADERBOARD ===== */
-function parseFundCSVForLB(txt) {
-    var NL = String.fromCharCode(10);
-    var lines = txt.split(NL);
-    var data = [];
-    var products = [];
-    var headerIdx = -1;
-    for (var i = 0; i < lines.length; i++) {
-        if (lines[i].indexOf('KODE SLS') !== -1 || lines[i].indexOf('NAMA SLS') !== -1) { headerIdx = i; break; }
-    }
-    if (headerIdx === -1) return { data: [], products: [] };
-    var headers = lines[headerIdx].split(',');
-    var pfCols = [];
-    for (var c = 0; c < headers.length; c++) {
-        var h = headers[c].trim().replace(/"/g, '');
-        if (h.indexOf('ACTUAL') !== -1 && h.indexOf('PF') !== -1) {
-            var pName = h.replace(/ACTUAL\s*PF\d+\s*/i, '').replace(/AO\s*/i, '').trim();
-            if (!pName) pName = h;
-            pfCols.push({ idx: c, name: pName });
-            if (products.indexOf(pName) === -1) products.push(pName);
-        }
-    }
-    var colKode = -1, colNama = -1, colArea = -1, colType = -1, colTgtCov = -1;
-    for (var c = 0; c < headers.length; c++) {
-        var hh = headers[c].trim().replace(/"/g, '').toUpperCase();
-        if (hh.indexOf('KODE') !== -1) colKode = c;
-        else if (hh.indexOf('NAMA') !== -1) colNama = c;
-        else if (hh.indexOf('AREA') !== -1) colArea = c;
-        else if (hh === 'TYPE' || hh === 'TIPE') colType = c;
-        else if (hh.indexOf('TARGET COVEX') !== -1 || hh.indexOf('TARGET COV') !== -1) colTgtCov = c;
-    }
-    for (var r = headerIdx + 1; r < lines.length; r++) {
-        var line = lines[r].trim();
-        if (!line) continue;
-        var cols = line.split(',');
-        var nama = cols[colNama] ? cols[colNama].trim().replace(/"/g, '') : '';
-        if (!nama) continue;
-        var row = {
-            kode: cols[colKode] ? cols[colKode].trim().replace(/"/g, '') : '',
-            nama: nama,
-            area: cols[colArea] ? cols[colArea].trim().replace(/"/g, '') : '',
-            type: cols[colType] ? cols[colType].trim().replace(/"/g, '') : '',
-            tgtCov: parseFloat((cols[colTgtCov] || '0').replace(/"/g, '').replace(/\./g, '').replace(',', '.')) || 0,
-            products: {}
-        };
-        for (var p = 0; p < pfCols.length; p++) {
-            var pf = pfCols[p];
-            row.products[pf.name] = parseFloat((cols[pf.idx] || '0').replace(/"/g, '').replace(/\./g, '').replace(',', '.')) || 0;
-        }
-        data.push(row);
-    }
-    return { data: data, products: products };
-}
 
 /* ===== LOAD ALL MONTHS ===== */
 function loadAllMonths() {
@@ -71,22 +16,15 @@ function loadAllMonths() {
         (function(month) {
             var urlInc = CONFIG.getURL('INC', month);
             var urlSch = CONFIG.getURL('SCH', month);
-            var urlFund = CONFIG.getURL('FUND', month);
 
             promises.push(
                 Promise.all([
                     fetch(urlInc).then(function(r) { if (r.ok) return r.text(); return ''; }).catch(function() { return ''; }),
-                    fetch(urlSch).then(function(r) { if (r.ok) return r.text(); return ''; }).catch(function() { return ''; }),
-                    fetch(urlFund).then(function(r) { if (r.ok) return r.text(); return ''; }).catch(function() { return ''; })
+                    fetch(urlSch).then(function(r) { if (r.ok) return r.text(); return ''; }).catch(function() { return ''; })
                 ]).then(function(res) {
                     if (res[0] && res[1]) {
                         SLABS_ALL[month] = parseScheme(res[1]);
                         ALL_DATA[month] = parseData(res[0]);
-                    }
-                    if (res[2]) {
-                        var parsed = parseFundCSVForLB(res[2]);
-                        FUND_DATA_LB[month] = parsed.data;
-                        if (parsed.products.length > 0) FUND_PRODUCTS = parsed.products;
                     }
                 })
             );
@@ -96,16 +34,31 @@ function loadAllMonths() {
     Promise.all(promises).then(function() {
         var loaded = 0;
         for (var k in ALL_DATA) { if (ALL_DATA[k]) loaded++; }
-        var fundLoaded = 0;
-        for (var k in FUND_DATA_LB) { if (FUND_DATA_LB[k]) fundLoaded++; }
         if (sb) sb.className = 'badge st-conn';
-        if (st) st.textContent = 'Live - ' + loaded + ' INC + ' + fundLoaded + ' FUND';
+        if (st) st.textContent = 'Live - ' + loaded + ' bulan';
         populateAreaFilterLB();
+        setDefaultZeroMonth();
         renderAll();
+        renderZeroIncentive();
     }).catch(function(e) {
         if (sb) sb.className = 'badge st-err';
         if (st) st.textContent = 'Error: ' + (e.message || e);
     });
+}
+
+/* ===== SET DEFAULT ZERO MONTH ===== */
+function setDefaultZeroMonth() {
+    var now = new Date();
+    var m = now.getMonth() + 1;
+    var key = 'M' + (m < 10 ? '0' + m : m);
+    var sel = document.getElementById('zeroMonth');
+    if (!sel) return;
+    for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === key) {
+            sel.value = key;
+            break;
+        }
+    }
 }
 
 /* ===== POPULATE AREA FILTER ===== */
@@ -113,13 +66,6 @@ function populateAreaFilterLB() {
     var areas = {};
     for (var m in ALL_DATA) {
         var data = ALL_DATA[m];
-        if (!data) continue;
-        for (var i = 0; i < data.length; i++) {
-            if (data[i].area) areas[data[i].area] = true;
-        }
-    }
-    for (var m in FUND_DATA_LB) {
-        var data = FUND_DATA_LB[m];
         if (!data) continue;
         for (var i = 0; i < data.length; i++) {
             if (data[i].area) areas[data[i].area] = true;
@@ -185,8 +131,7 @@ function renderAllRank() {
         incentive: 'Incentive (Total)',
         coverage: 'Coverage %',
         gc: 'GC %',
-        pf: 'Product Focus (Avg)',
-        fund: 'Fundamental (Avg)'
+        pf: 'Product Focus (Avg)'
     };
     var elChart = document.getElementById('chartLabel');
     if (elChart) elChart.textContent = sortLabels[SORT_BY] || 'IMS Revenue';
@@ -204,7 +149,6 @@ function renderAllRank() {
                 var d = fd[i];
                 var inc = calcIncentive(d, slabs);
 
-                /* KEY: Selalu gunakan kode sebagai primary key */
                 var key = d.kode || d.nama;
 
                 if (!accum[key]) {
@@ -216,15 +160,12 @@ function renderAllRank() {
                         covSum: 0,
                         gcSum: 0,
                         pfSum: 0,
-                        fundSum: 0,
                         incSum: 0,
                         count: 0,
-                        fundCount: 0,
                         lastMonth: m
                     };
                 }
 
-                /* Selalu update nama & type ke bulan terbaru */
                 accum[key].nama = d.nama;
                 accum[key].type = getType(d);
                 accum[key].lastMonth = m;
@@ -232,67 +173,10 @@ function renderAllRank() {
                 accum[key].imsSum += (d.actIMS || 0);
                 accum[key].covSum += (inc.covP || 0);
                 accum[key].gcSum += (inc.gcIncP || 0);
-                /* Incentive tanpa cek hangus di leaderboard */
                 accum[key].incSum += (inc.totalRaw || 0);
                 var pfAvg = Math.round(((inc.aoP || 0) + (inc.pf1P || 0) + (inc.pf2P || 0)) / 3);
                 accum[key].pfSum += pfAvg;
                 accum[key].count++;
-            }
-        }
-
-        /* --- Fundamental data --- */
-        var fundData = FUND_DATA_LB[MONTHS[m]];
-        if (fundData) {
-            var elArea = document.getElementById('filterArea');
-            var elType = document.getElementById('filterType');
-            var va = elArea ? elArea.value : 'all';
-            var vt = elType ? elType.value : 'all';
-
-            for (var i = 0; i < fundData.length; i++) {
-                var fd2 = fundData[i];
-                if (va !== 'all' && fd2.area !== va) continue;
-                if (vt !== 'all') {
-                    var ft = fd2.type ? fd2.type.toUpperCase() : '';
-                    if (vt === 'WHS' && ft.indexOf('WHS') === -1) continue;
-                    if (vt === 'Retail' && ft.indexOf('RETAIL') === -1) continue;
-                    if (vt === 'TO-RIST' && ft.indexOf('RIST') === -1) continue;
-                }
-
-                /* KEY: Gunakan kode sebagai primary key untuk fundamental juga */
-                var key2 = fd2.kode || fd2.nama;
-
-                if (!accum[key2]) {
-                    accum[key2] = {
-                        kode: fd2.kode || '',
-                        nama: fd2.nama,
-                        type: fd2.type || '',
-                        imsSum: 0,
-                        covSum: 0,
-                        gcSum: 0,
-                        pfSum: 0,
-                        fundSum: 0,
-                        incSum: 0,
-                        count: 0,
-                        fundCount: 0,
-                        lastMonth: m
-                    };
-                }
-
-                /* Update nama ke bulan terbaru */
-                accum[key2].nama = fd2.nama;
-                accum[key2].lastMonth = m;
-
-                var prodCount = 0;
-                var prodTotal = 0;
-                for (var p = 0; p < FUND_PRODUCTS.length; p++) {
-                    var act = fd2.products[FUND_PRODUCTS[p]] || 0;
-                    var pp = (fd2.tgtCov > 0) ? Math.round((act / fd2.tgtCov) * 100) : 0;
-                    prodTotal += pp;
-                    prodCount++;
-                }
-                var fundAvg = (prodCount > 0) ? Math.round(prodTotal / prodCount) : 0;
-                accum[key2].fundSum += fundAvg;
-                accum[key2].fundCount++;
             }
         }
     }
@@ -306,7 +190,6 @@ function renderAllRank() {
         a.avgCov = (a.count > 0) ? Math.round(a.covSum / a.count) : 0;
         a.avgGc = (a.count > 0) ? Math.round(a.gcSum / a.count) : 0;
         a.avgPf = (a.count > 0) ? Math.round(a.pfSum / a.count) : 0;
-        a.avgFund = (a.fundCount > 0) ? Math.round(a.fundSum / a.fundCount) : 0;
         arr.push(a);
     }
 
@@ -316,12 +199,11 @@ function renderAllRank() {
         if (SORT_BY === 'coverage') return b.avgCov - a.avgCov;
         if (SORT_BY === 'gc') return b.avgGc - a.avgGc;
         if (SORT_BY === 'pf') return b.avgPf - a.avgPf;
-        if (SORT_BY === 'fund') return b.avgFund - a.avgFund;
         return b.avgIms - a.avgIms;
     });
 
     /* --- Build table --- */
-    var colIdx = { ims: 3, incentive: 4, coverage: 5, gc: 6, pf: 7, fund: 8 };
+    var colIdx = { ims: 3, incentive: 4, coverage: 5, gc: 6, pf: 7 };
     var activeC = colIdx[SORT_BY] || 3;
 
     var h = '<table class="lb-table"><thead><tr>';
@@ -331,7 +213,6 @@ function renderAllRank() {
     h += '<th' + (activeC === 5 ? ' class="active-col"' : '') + '>&#128200; COV</th>';
     h += '<th' + (activeC === 6 ? ' class="active-col"' : '') + '>&#127811; GC</th>';
     h += '<th' + (activeC === 7 ? ' class="active-col"' : '') + '>&#127919; PF</th>';
-    h += '<th' + (activeC === 8 ? ' class="active-col"' : '') + '>&#128202; FUND</th>';
     h += '</tr></thead><tbody>';
 
     for (var i = 0; i < arr.length; i++) {
@@ -341,7 +222,7 @@ function renderAllRank() {
         var typeStr = r.type || '';
         var typeLbl = typeStr;
         var typeCls = '';
-        var tu = typeStr.toUpperCase();
+        var tu = String(typeStr).toUpperCase();
         if (tu.indexOf('WHS') !== -1) { typeLbl = 'WHS'; typeCls = 'type-whs'; }
         else if (tu === 'MT' || tu.indexOf('MT') !== -1) { typeLbl = 'MT'; typeCls = 'type-mt'; }
         else if (tu.indexOf('RETAIL') !== -1) { typeLbl = 'Retail'; typeCls = 'type-retail'; }
@@ -356,13 +237,168 @@ function renderAllRank() {
         h += '<td' + (activeC === 5 ? ' class="active-col"' : '') + '><span class="pb-b ' + pcC(r.avgCov) + '">' + r.avgCov + '%</span></td>';
         h += '<td' + (activeC === 6 ? ' class="active-col"' : '') + '><span class="pb-b ' + pcC(r.avgGc) + '">' + r.avgGc + '%</span></td>';
         h += '<td' + (activeC === 7 ? ' class="active-col"' : '') + '><span class="pb-b ' + pcC(r.avgPf) + '">' + r.avgPf + '%</span></td>';
-        h += '<td' + (activeC === 8 ? ' class="active-col"' : '') + '><span class="pb-b ' + pcC(r.avgFund) + '">' + r.avgFund + '%</span></td>';
         h += '</tr>';
     }
     h += '</tbody></table>';
 
+    if (arr.length === 0) {
+        h = '<p style="color:var(--t2);font-size:.72rem;text-align:center;padding:20px">Tidak ada data untuk periode ini</p>';
+    }
+
     var elRank = document.getElementById('allRank');
     if (elRank) elRank.innerHTML = h;
+}
+
+/* ===== RENDER ZERO INCENTIVE SECTION ===== */
+function renderZeroIncentive() {
+    var selMonth = document.getElementById('zeroMonth');
+    var selFilter = document.getElementById('zeroFilter');
+    var month = selMonth ? selMonth.value : 'M09';
+    var filter = selFilter ? selFilter.value : 'all';
+
+    var data = ALL_DATA[month];
+    var slabs = SLABS_ALL[month];
+
+    var elSummary = document.getElementById('zeroSummary');
+    var elTable = document.getElementById('zeroTable');
+
+    if (!data || !slabs) {
+        if (elSummary) elSummary.innerHTML = '';
+        if (elTable) elTable.innerHTML = '<p style="color:var(--t2);font-size:.72rem;text-align:center;padding:20px">Tidak ada data untuk bulan ini</p>';
+        return;
+    }
+
+    var elLabel = document.getElementById('zeroLabel');
+    var mIdx = MONTHS.indexOf(month);
+    if (elLabel) elLabel.textContent = MONTH_NAMES[mIdx] + ' 2026';
+
+    var fd = getFilteredLB(data);
+    var rows = [];
+    var totalGot = 0;
+    var totalZero = 0;
+    var totalHangus = 0;
+
+    for (var i = 0; i < fd.length; i++) {
+        var d = fd[i];
+        var inc = calcIncentive(d, slabs);
+        var finalInc = inc.hangus ? 0 : inc.totalRaw;
+        var isZero = (finalInc === 0);
+
+        /* Determine reason for zero */
+        var reason = '';
+        if (inc.hangus) {
+            reason = 'Coverage ' + inc.covP + '% < 100% (HANGUS)';
+            totalHangus++;
+        } else if (inc.totalRaw === 0) {
+            reason = 'Semua KPI dibawah minimum slab';
+        }
+
+        if (isZero) totalZero++;
+        else totalGot++;
+
+        /* Apply filter */
+        if (filter === 'zero' && !isZero) continue;
+        if (filter === 'got' && isZero) continue;
+
+        rows.push({
+            kode: d.kode || '',
+            nama: d.nama,
+            type: getType(d),
+            covP: inc.covP,
+            imsP: inc.imsP,
+            aqPct: inc.aqPct,
+            aqMul: inc.aqMul,
+            incIMS: inc.incIMS,
+            incAO: inc.incAO,
+            incPF1: inc.incPF1,
+            incPF2: inc.incPF2,
+            incGC: inc.incGC,
+            totalRaw: inc.totalRaw,
+            finalInc: finalInc,
+            hangus: inc.hangus,
+            reason: reason,
+            isZero: isZero
+        });
+    }
+
+    /* --- Summary badges --- */
+    var totalAll = totalGot + totalZero;
+    var sumH = '<div class="sum-grid" style="margin-bottom:14px">';
+    sumH += '<div class="sum-card"><div class="lbl">TOTAL SALESMAN</div><div class="val" style="font-size:1.3rem;font-weight:700">' + totalAll + '</div></div>';
+    sumH += '<div class="sum-card" style="border-left:3px solid var(--hi-c)"><div class="lbl">&#128994; DAPAT INCENTIVE</div><div class="val" style="font-size:1.3rem;font-weight:700;color:var(--hi-c)">' + totalGot + '</div></div>';
+    sumH += '<div class="sum-card" style="border-left:3px solid var(--lo-c)"><div class="lbl">&#128308; ZERO INCENTIVE</div><div class="val" style="font-size:1.3rem;font-weight:700;color:var(--lo-c)">' + totalZero + '</div></div>';
+    sumH += '<div class="sum-card" style="border-left:3px solid var(--mid-c)"><div class="lbl">&#128683; HANGUS (Cov &lt;100%)</div><div class="val" style="font-size:1.3rem;font-weight:700;color:var(--mid-c)">' + totalHangus + '</div></div>';
+    sumH += '</div>';
+    if (elSummary) elSummary.innerHTML = sumH;
+
+    /* --- Table --- */
+    var h = '<table class="lb-table"><thead><tr>';
+    h += '<th>#</th><th>SALESMAN</th><th>TIPE</th>';
+    h += '<th>COV %</th><th>IMS %</th><th>AQ</th>';
+    h += '<th>IMS</th><th>AO</th><th>' + PF_NAMES.pf1 + '</th><th>' + PF_NAMES.pf2 + '</th><th>GC</th>';
+    h += '<th>TOTAL</th><th>STATUS</th>';
+    h += '</tr></thead><tbody>';
+
+    /* Sort: zero first, then by totalRaw desc */
+    rows.sort(function(a, b) {
+        if (a.isZero !== b.isZero) return a.isZero ? -1 : 1;
+        return b.finalInc - a.finalInc;
+    });
+
+    for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        var typeStr = r.type || '';
+        var typeLbl = typeStr;
+        var typeCls = '';
+        var tu = String(typeStr).toUpperCase();
+        if (tu.indexOf('WHS') !== -1) { typeLbl = 'WHS'; typeCls = 'type-whs'; }
+        else if (tu.indexOf('RETAIL') !== -1) { typeLbl = 'Retail'; typeCls = 'type-retail'; }
+        else if (tu.indexOf('RIST') !== -1) { typeLbl = 'TO-RIST'; typeCls = 'type-torist'; }
+
+        var rowCls = r.isZero ? ' style="opacity:.85"' : '';
+
+        h += '<tr' + rowCls + '>';
+        h += '<td>' + (i + 1) + '</td>';
+        h += '<td><span class="sls-kode">' + r.kode + '</span> <strong>' + r.nama + '</strong></td>';
+        h += '<td><span class="type-badge ' + typeCls + '">' + typeLbl + '</span></td>';
+        h += '<td><span class="pb-b ' + pcC(r.covP) + '">' + r.covP + '%</span></td>';
+        h += '<td><span class="pb-b ' + pcC(r.imsP) + '">' + r.imsP + '%</span></td>';
+
+        /* AQ badge */
+        var aqCls = r.aqMul >= 100 ? 'ph-h' : (r.aqMul >= 80 ? 'ph-m' : 'ph-l');
+        h += '<td><span class="pb-b ' + aqCls + '">' + r.aqPct + '%</span></td>';
+
+        h += '<td>' + fmtRp(r.incIMS) + '</td>';
+        h += '<td>' + fmtRp(r.incAO) + '</td>';
+        h += '<td>' + fmtRp(r.incPF1) + '</td>';
+        h += '<td>' + fmtRp(r.incPF2) + '</td>';
+        h += '<td>' + fmtRp(r.incGC) + '</td>';
+
+        /* Total with hangus styling */
+        if (r.hangus) {
+            h += '<td style="text-decoration:line-through;color:var(--lo-c)">' + fmtRp(r.totalRaw) + '</td>';
+        } else {
+            h += '<td style="font-weight:700">' + fmtRp(r.finalInc) + '</td>';
+        }
+
+        /* Status badge */
+        if (r.hangus) {
+            h += '<td><span class="kejar-badge kejar-no" style="font-size:.55rem" title="' + r.reason + '">&#128683; HANGUS</span></td>';
+        } else if (r.isZero) {
+            h += '<td><span class="kejar-badge kejar-no" style="font-size:.55rem">&#128308; Rp 0</span></td>';
+        } else {
+            h += '<td><span class="kejar-badge kejar-ok" style="font-size:.55rem">&#128994; ' + fmtRp(r.finalInc) + '</span></td>';
+        }
+
+        h += '</tr>';
+    }
+    h += '</tbody></table>';
+
+    if (rows.length === 0) {
+        h = '<p style="color:var(--t2);font-size:.72rem;text-align:center;padding:20px">Tidak ada data sesuai filter</p>';
+    }
+
+    if (elTable) elTable.innerHTML = h;
 }
 
 /* ===== RENDER TREND CHART (SVG) ===== */
@@ -371,77 +407,33 @@ function renderTrendChart() {
     var salesmen = {};
 
     for (var m = 0; m < MONTHS.length; m++) {
-        if (SORT_BY === 'fund') {
-            var fundData = FUND_DATA_LB[MONTHS[m]];
-            if (!fundData) continue;
-            var elArea = document.getElementById('filterArea');
-            var elType = document.getElementById('filterType');
-            var va = elArea ? elArea.value : 'all';
-            var vt = elType ? elType.value : 'all';
+        var data = ALL_DATA[MONTHS[m]];
+        var slabs = SLABS_ALL[MONTHS[m]];
+        if (!data || !slabs) continue;
+        var fd = getFilteredLB(data);
 
-            for (var i = 0; i < fundData.length; i++) {
-                var fd2 = fundData[i];
-                if (va !== 'all' && fd2.area !== va) continue;
-                if (vt !== 'all') {
-                    var ft = fd2.type ? fd2.type.toUpperCase() : '';
-                    if (vt === 'WHS' && ft.indexOf('WHS') === -1) continue;
-                    if (vt === 'Retail' && ft.indexOf('RETAIL') === -1) continue;
-                    if (vt === 'TO-RIST' && ft.indexOf('RIST') === -1) continue;
-                }
+        for (var i = 0; i < fd.length; i++) {
+            var d = fd[i];
+            var inc = calcIncentive(d, slabs);
 
-                /* KEY: Gunakan kode untuk trend chart fundamental */
-                var key = fd2.kode || fd2.nama;
+            var key = d.kode || d.nama;
 
-                if (!salesmen[key]) {
-                    salesmen[key] = { nama: fd2.nama, data: new Array(12) };
-                    for (var x = 0; x < 12; x++) salesmen[key].data[x] = null;
-                }
-
-                /* Update nama ke bulan terbaru */
-                salesmen[key].nama = fd2.nama;
-
-                var prodCount = 0;
-                var prodTotal = 0;
-                for (var p = 0; p < FUND_PRODUCTS.length; p++) {
-                    var act = fd2.products[FUND_PRODUCTS[p]] || 0;
-                    var pp = (fd2.tgtCov > 0) ? Math.round((act / fd2.tgtCov) * 100) : 0;
-                    prodTotal += pp;
-                    prodCount++;
-                }
-                salesmen[key].data[m] = (prodCount > 0) ? Math.round(prodTotal / prodCount) : 0;
+            if (!salesmen[key]) {
+                salesmen[key] = { nama: d.nama, data: new Array(12) };
+                for (var x = 0; x < 12; x++) salesmen[key].data[x] = null;
             }
-        } else {
-            var data = ALL_DATA[MONTHS[m]];
-            var slabs = SLABS_ALL[MONTHS[m]];
-            if (!data || !slabs) continue;
-            var fd = getFilteredLB(data);
 
-            for (var i = 0; i < fd.length; i++) {
-                var d = fd[i];
-                var inc = calcIncentive(d, slabs);
+            salesmen[key].nama = d.nama;
 
-                /* KEY: Gunakan kode untuk trend chart */
-                var key = d.kode || d.nama;
+            var val = 0;
+            if (SORT_BY === 'ims') val = (inc.imsP || 0);
+            else if (SORT_BY === 'incentive') val = (inc.totalRaw || 0);
+            else if (SORT_BY === 'coverage') val = (inc.covP || 0);
+            else if (SORT_BY === 'gc') val = (inc.gcIncP || 0);
+            else if (SORT_BY === 'pf') val = Math.round(((inc.aoP || 0) + (inc.pf1P || 0) + (inc.pf2P || 0)) / 3);
+            else val = (inc.imsP || 0);
 
-                if (!salesmen[key]) {
-                    salesmen[key] = { nama: d.nama, data: new Array(12) };
-                    for (var x = 0; x < 12; x++) salesmen[key].data[x] = null;
-                }
-
-                /* Update nama ke bulan terbaru */
-                salesmen[key].nama = d.nama;
-
-                var val = 0;
-                if (SORT_BY === 'ims') val = (inc.imsP || 0);
-                /* Incentive tanpa cek hangus di leaderboard */
-                else if (SORT_BY === 'incentive') val = (inc.totalRaw || 0);
-                else if (SORT_BY === 'coverage') val = (inc.covP || 0);
-                else if (SORT_BY === 'gc') val = (inc.gcIncP || 0);
-                else if (SORT_BY === 'pf') val = Math.round(((inc.aoP || 0) + (inc.pf1P || 0) + (inc.pf2P || 0)) / 3);
-                else val = (inc.imsP || 0);
-
-                salesmen[key].data[m] = val;
-            }
+            salesmen[key].data[m] = val;
         }
     }
 
@@ -517,7 +509,7 @@ function renderTrendChart() {
     var elChartWrap = document.getElementById('chartWrap');
     if (elChartWrap) elChartWrap.innerHTML = svgH;
 
-    /* --- Legend: Tampilkan nama (bukan kode) --- */
+    /* --- Legend --- */
     var legH = '';
     for (var n = 0; n < keys.length; n++) {
         var displayName = salesmen[keys[n]].nama;
@@ -536,14 +528,17 @@ document.addEventListener('DOMContentLoaded', function() {
     var filterType = document.getElementById('filterType');
     var fromMonth = document.getElementById('fromMonth');
     var toMonth = document.getElementById('toMonth');
-    var themeBtn = document.getElementById('themeBtn');
+    var zeroMonth = document.getElementById('zeroMonth');
+    var zeroFilter = document.getElementById('zeroFilter');
 
     if (selSort) selSort.onchange = renderAll;
-    if (filterArea) filterArea.onchange = renderAll;
-    if (filterType) filterType.onchange = renderAll;
+    if (filterArea) filterArea.onchange = function() { renderAll(); renderZeroIncentive(); };
+    if (filterType) filterType.onchange = function() { renderAll(); renderZeroIncentive(); };
     if (fromMonth) fromMonth.onchange = renderAll;
     if (toMonth) toMonth.onchange = renderAll;
-    if (themeBtn) themeBtn.onclick = togTheme;
+    if (zeroMonth) zeroMonth.onchange = renderZeroIncentive;
+    if (zeroFilter) zeroFilter.onchange = renderZeroIncentive;
 
     loadAllMonths();
 });
+

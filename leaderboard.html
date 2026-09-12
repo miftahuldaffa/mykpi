@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id" data-theme="light">
 <head>
@@ -11,96 +12,94 @@
 <body>
 
 <!-- ===== NAVBAR ===== -->
-<div class="nav">
+<nav class="nav">
     <div class="nav-brand">
-        <div class="nav-logo">M</div>
+        <div class="nav-logo"><img src="img/favicon.png" alt="M"></div>
         <div>
-            <div class="nav-title">Leaderboard</div>
-            <div class="nav-sub">Mondelez International - 2026</div>
+            <div class="nav-title">Mondelez International</div>
+            <div class="nav-sub">Leaderboard 2026</div>
         </div>
     </div>
     <div class="nav-right">
         <a href="index.html" class="nav-link">&#128176; Incentive</a>
-        <a href="fundamental.html" class="nav-link">&#128202; Fundamental</a>
+        <a href="gs.html" class="nav-link">&#128205; GS</a>
         <a href="leaderboard.html" class="nav-link active">&#127942; Leaderboard</a>
-        <a href="gs.html" class="nav-link active">📍 GS Tracking</a>
-        <button class="theme-btn" id="themeBtn">
-            <span id="themeIc">&#127769;</span>
-            <span id="themeLb">Dark</span>
-        </button>
-        <span class="badge st-load" id="stBadge">
+        <div class="badge st-load" id="stBadge">
             <span class="dot"></span>
             <span id="stTxt">Loading...</span>
-        </span>
+        </div>
+        <button class="theme-btn" id="themeBtn" onclick="togTheme()">&#127769; Mode</button>
     </div>
-</div>
+</nav>
 
 <!-- ===== MAIN CONTENT ===== -->
 <div class="wrap">
 
-    <!-- Control Bar: Filter -->
+    <!-- ===== FILTER BAR ===== -->
     <div class="ctrl-bar">
-        <h3>&#128269; Filter</h3>
-        <div class="ctrl-grp">
-            <label>Ranking by:</label>
-            <select id="selSort">
-                <option value="ims">&#128293; IMS Revenue</option>
-                <option value="incentive">&#128176; Incentive (Total)</option>
-                <option value="coverage">&#128200; Coverage %</option>
-                <option value="gc">&#127811; GC %</option>
-                <option value="pf">&#127919; Product Focus (Avg)</option>
-                <option value="fund">&#128202; Fundamental (Avg)</option>
-            </select>
+        <div class="ctrl-bar-title">
+            <h3>&#127942; Leaderboard</h3>
         </div>
-        <div class="ctrl-grp">
-            <label>Area:</label>
-            <select id="filterArea">
-                <option value="all">Semua Area</option>
-            </select>
-        </div>
-        <div class="ctrl-grp">
-            <label>Tipe:</label>
-            <select id="filterType">
-                <option value="all">Semua Tipe</option>
-                <option value="whs">WHS</option>
-                <option value="mt">MT</option> 
-                <option value="retail">Retail</option>
-                <option value="torist">TO-RIST</option>
-            </select>
-        </div>
-        <div class="ctrl-grp">
-            <label>Dari:</label>
-            <select id="fromMonth">
-                <option value="M01" selected>Januari</option>
-                <option value="M02">Februari</option>
-                <option value="M03">Maret</option>
-                <option value="M04">April</option>
-                <option value="M05">Mei</option>
-                <option value="M06">Juni</option>
-                <option value="M07">Juli</option>
-                <option value="M08">Agustus</option>
-                <option value="M09">September</option>
-                <option value="M10">Oktober</option>
-                <option value="M11">November</option>
-                <option value="M12">Desember</option>
-            </select>
-        </div>
-        <div class="ctrl-grp">
-            <label>Sampai:</label>
-            <select id="toMonth">
-                <option value="M01">Januari</option>
-                <option value="M02">Februari</option>
-                <option value="M03">Maret</option>
-                <option value="M04">April</option>
-                <option value="M05">Mei</option>
-                <option value="M06" selected>Juni</option>
-                <option value="M07">Juli</option>
-                <option value="M08">Agustus</option>
-                <option value="M09">September</option>
-                <option value="M10">Oktober</option>
-                <option value="M11">November</option>
-                <option value="M12">Desember</option>
-            </select>
+        <div class="ctrl-grid">
+            <div class="ctrl-grp">
+                <label>Ranking</label>
+                <select id="selSort">
+                    <option value="ims">&#128293; IMS Revenue</option>
+                    <option value="incentive">&#128176; Incentive (Total)</option>
+                    <option value="coverage">&#128200; Coverage %</option>
+                    <option value="gc">&#127811; GC %</option>
+                    <option value="pf">&#127919; Product Focus (Avg)</option>
+                </select>
+            </div>
+            <div class="ctrl-grp">
+                <label>Area</label>
+                <select id="filterArea">
+                    <option value="all">Semua Area</option>
+                </select>
+            </div>
+            <div class="ctrl-grp">
+                <label>Type</label>
+                <select id="filterType">
+                    <option value="all">Semua Type</option>
+                    <option value="whs">WHS</option>
+                    <option value="retail">Retail</option>
+                    <option value="torist">TO-RIST</option>
+                </select>
+            </div>
+            <div class="ctrl-grp">
+                <label>Dari</label>
+                <select id="fromMonth">
+                    <option value="M01" selected>Januari</option>
+                    <option value="M02">Februari</option>
+                    <option value="M03">Maret</option>
+                    <option value="M04">April</option>
+                    <option value="M05">Mei</option>
+                    <option value="M06">Juni</option>
+                    <option value="M07">Juli</option>
+                    <option value="M08">Agustus</option>
+                    <option value="M09">September</option>
+                    <option value="M10">Oktober</option>
+                    <option value="M11">November</option>
+                    <option value="M12">Desember</option>
+                </select>
+            </div>
+            <div class="ctrl-grp">
+                <label>Sampai</label>
+                <select id="toMonth">
+                    <option value="M01">Januari</option>
+                    <option value="M02">Februari</option>
+                    <option value="M03">Maret</option>
+                    <option value="M04">April</option>
+                    <option value="M05">Mei</option>
+                    <option value="M06">Juni</option>
+                    <option value="M07">Juli</option>
+                    <option value="M08">Agustus</option>
+                    <option value="M09" selected>September</option>
+                    <option value="M10">Oktober</option>
+                    <option value="M11">November</option>
+                    <option value="M12">Desember</option>
+                </select>
+            </div>
         </div>
     </div>
 
@@ -108,10 +107,51 @@
     <div class="section">
         <div class="sec-header">
             <h2>&#127942; Ranking Salesman</h2>
-            <div class="sub" id="allLabel">Jan - Jun 2026</div>
+            <div class="sub" id="allLabel">Jan - Sep 2026</div>
         </div>
         <div class="sec-body">
             <div id="allRank"></div>
+        </div>
+    </div>
+
+    <!-- ===== ZERO INCENTIVE CHECK SECTION ===== -->
+    <div class="section">
+        <div class="sec-header">
+            <h2>&#128683; Cek Incentive Per Bulan</h2>
+            <div class="sub" id="zeroLabel">Status incentive salesman</div>
+        </div>
+        <div class="sec-body">
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px">
+                <div class="ctrl-grp">
+                    <label>Bulan</label>
+                    <select id="zeroMonth">
+                        <option value="M01">Januari</option>
+                        <option value="M02">Februari</option>
+                        <option value="M03">Maret</option>
+                        <option value="M04">April</option>
+                        <option value="M05">Mei</option>
+                        <option value="M06">Juni</option>
+                        <option value="M07">Juli</option>
+                        <option value="M08">Agustus</option>
+                        <option value="M09" selected>September</option>
+                        <option value="M10">Oktober</option>
+                        <option value="M11">November</option>
+                        <option value="M12">Desember</option>
+                    </select>
+                </div>
+                <div class="ctrl-grp">
+                    <label>Status</label>
+                    <select id="zeroFilter">
+                        <option value="all">Semua</option>
+                        <option value="zero">&#128308; Zero Incentive</option>
+                        <option value="got">&#128994; Dapat Incentive</option>
+                    </select>
+                </div>
+            </div>
+            <!-- Summary badges -->
+            <div id="zeroSummary"></div>
+            <!-- Table -->
+            <div id="zeroTable"></div>
         </div>
     </div>
 
